@@ -1,24 +1,19 @@
 """
-00_verify_hypotheses.py: Standalone test verifying anthropogenic multi-stressor
+check_hypotheses.py: Standalone test verifying anthropogenic multi-stressor
 accumulation metrics using baseline statistical methods.
 """
 import os
 import pandas as pd
 import scipy.stats as stats
 
-def run_standalone_hypothesis_check():
-    print("=" * 80)
-    print("RUNNING STANDALONE VERTEBRATE MULTISTRESSOR HYPOTHESIS VALIDATION")
-    print("=" * 80)
-
-    threats_path = os.path.join("data", "all_sumthreats.csv")
+def run_standalone_hypothesis_check(threats_path):
+    print("\n Replicating multi-stressor findings (Munstermann et al.)")
+    print("-"*80)
 
     if not os.path.exists(threats_path):
-        print(f"Error: Raw threats file missing at {threats_path}")
-        print("Please ensure your data directory contains 'all_sumthreats.csv'.")
+        print(f"Error: File not found at {threats_path}")
         return
 
-    # Ingest threat data
     df_global = pd.read_csv(threats_path, low_memory=False)
 
     explicit_threat_cols = [
@@ -30,10 +25,11 @@ def run_standalone_hypothesis_check():
 
     df_clean_threats = df_global[explicit_threat_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
 
-    print("\nGlobal Primary Threat Rankings (Top 5):")
+    print("\nTop 5 primary threat rankings:")
     threat_counts = df_clean_threats.sum().sort_values(ascending=False)
     for rank, (threat_name, count) in enumerate(threat_counts.head(5).items(), 1):
-        print(f"  {rank}. {threat_name.upper():<35} : Impacts {int(count)} species")
+        display_name = threat_name.upper().replace('&D', '&').replace('_', ' ')
+        print(f"  {rank}. {display_name:<35} : Impacts {int(count)} species")
 
     df_global['sum'] = pd.to_numeric(df_global['sum'], errors='coerce').fillna(0)
     df_global['NTVUENCR_num'] = pd.to_numeric(df_global['NTVUENCR'], errors='coerce')
@@ -43,20 +39,20 @@ def run_standalone_hypothesis_check():
     pool_high_risk = df_test[df_test['NTVUENCR_num'] == 1.0]
 
     if len(pool_low_risk) > 0 and len(pool_high_risk) > 0:
-        print(f"\nTesting Global Multistressor Accumulation Hypothesis:")
-        print(f"  - Low-Risk Pool (0.0) Median Threats    : {pool_low_risk['sum'].median()}")
-        print(f"  - High-Risk Pool (1.0) Median Threats   : {pool_high_risk['sum'].median()}")
+        print(f"\nTesting multi-stressor accumulation hypothesis:")
+        print(f"  - Low-risk pool median threats   : {pool_low_risk['sum'].median()}")
+        print(f"  - High-risk pool median threats  : {pool_high_risk['sum'].median()}")
 
         u_stat, p_val = stats.mannwhitneyu(pool_low_risk['sum'], pool_high_risk['sum'], alternative='two-sided')
-        print(f"  - Mann-Whitney U Statistic             : {u_stat}")
-        print(f"  - Calculated p-value                   : {p_val:.6e}")
+        print(f"  - Mann-Whitney U statistic       : {u_stat}")
+        print(f"  - p-value                        : {p_val:.6e}")
 
         if p_val < 0.05:
-            print("  STATUS: SUCCESS. High-risk pools exhibit higher stressor loading (p < 0.05).")
+            print("  Result: Significant cumulative threat accumulation confirmed (p < 0.05).")
         else:
-            print("  STATUS: FAIL. No significant difference in stressor loading detected.")
+            print("  Result: No significant difference in threat accumulation.")
 
-        print("\nClass-Specific Multistressor Breakdown:")
+        print("\nBreakdown by taxonomic class:")
         for cls in df_test['CLASS'].dropna().unique():
             df_cls = df_test[df_test['CLASS'] == cls]
             p_low = df_cls[df_cls['NTVUENCR_num'] == 0.0]
@@ -65,8 +61,10 @@ def run_standalone_hypothesis_check():
                 _, cls_p = stats.mannwhitneyu(p_low['sum'], p_high['sum'], alternative='two-sided')
                 print(f"    * {str(cls):<12} -> Low Median: {p_low['sum'].median()} | High Median: {p_high['sum'].median()} | p-val: {cls_p:.4e}")
     else:
-        print("\nSkipping test: Low-risk and high-risk vectors could not be isolated.")
-    print("=" * 80 + "\n")
+        print("\nSkipping hypothesis test: Insufficient risk category splits.")
+    print("-"*80 + "\n")
 
 if __name__ == "__main__":
-    run_standalone_hypothesis_check()
+    # Allows researchers to run it as a lightweight standalone command
+    DEFAULT_PATH = os.path.join("data", "all_sumthreats.csv")
+    run_standalone_hypothesis_check(DEFAULT_PATH)

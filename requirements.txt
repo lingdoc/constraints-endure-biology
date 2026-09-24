@@ -1,0 +1,12 @@
+arviz==0.23.4
+Bio==1.8.4
+biopython==1.88
+jax[cuda]==0.6.2
+matplotlib==3.11.2
+numpy==2.5.3
+pandas==3.0.6
+pymc==5.25.1
+pytensor==2.31.7
+scipy==1.18.1
+seaborn==0.13.2
+numpyro>=0.15.0

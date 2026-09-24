@@ -1,12 +1,11 @@
-# Constraints that Endure: Modeling Connectivity Across Evolutionary Domains
+# Constraints that endure: Assessing model robustness in vertebrate ecology
 
 This repository contains the code to run Bayesian phylogenetic generalized linear mixed models (PGLMMs) evaluating global extinction risks in terrestrial vertebrates. The pipeline builds on data and phylogenies from Munstermann et al. (2022) to separate baseline ecological traits from macro-evolutionary structures across four vertebrate classes.
 
-## Repository Structure
+## Repository structure
 
 ```text
-constraints-endure-vertebrates/
-├── data/                                    # Raw trait tables and phylogenetic trees
+├── data/                                    # original trait tables and phylogenetic trees
 │   ├── all_sumthreats.csv                   
 │   ├── amphibian100trees.nex                
 │   ├── amphibians.csv                       
@@ -16,43 +15,41 @@ constraints-endure-vertebrates/
 │   ├── mammals.csv                          
 │   ├── reptiles.csv                         
 │   └── squamate100trees.nex                 
-├── output/                                  # Pipeline outputs and results
-│   ├── global_bayesian_trivar_metrics.csv   # Estimated model parameters
-│   └── global_trivar_variance_profiles.png  
+├── output/                                  # pipeline outputs and results
+│   ├── figures/                             # plots generated from metrics
+│   │   ├── fig1_primary_threats.png         # assessment of threats to vertebrates
+│   │   ├── fig2_multistressor_loading.png   # vertebrate multistressors
+│   │   └── fig3_variance_profiles.png       # variance by category and class  
+│   └── global_bayesian_trivar_metrics.csv   # metrics from master pipeline
+├── utils/                                   # core utilities
+│   ├── bayesian_engine.py                   # PyMC model configuration
+│   ├── check_hypotheses.py                  # verification test runner
+│   └── generate_plots.py                    # figure generator
 ├── .gitignore                               
-├── 00_verify_hypotheses.py                  # Standalone frequentist verification
-├── 01_run_pipeline.py                       # Full Bayesian pipeline runner
-├── 02_generate_plots.py                     # Generates publication-ready figures
-└── bayesian_engine_hetero.py                # PyMC model specification backend
+├── README.md                                # project documentation
+├── requirements.txt                         # pinned package dependencies
+└── run_pipeline.py                          # main script
 ```
 
-## Setup & Dependencies
+## Background & data sources
 
-The core Bayesian models use JAX-accelerated sampling. While they can run on a CPU, an NVIDIA GPU is highly recommended for reasonable sampling times.
+The original study examines how ecological traits shape macro-ecological vulnerability scales globally across terrestrial vertebrates using standard, homoskedastic frequentist phylogenetic mixed models.
 
-### Dependencies
-Install the required packages via `pip`:
-```bash
-pip install numpy pandas scipy pymc arviz pytensor biopython jax[cuda] numpyro
-```
+* **Original Paper:** Munstermann, Maya J, Heim, Noel A, McCauley, Douglas J, Payne, Jonathan L, Upham, Nathan S, Wang, Steve C, & Knope, Matthew L (2022). A global ecological signal of extinction risk in terrestrial vertebrates. *Conservation Biology*, 36(3), e13852. https://doi.org/10.1111/cobi.13852.
+* **Data Source:** Munstermann, Maya; Heim, Noel; McCauley, Douglas et al. (2021). *A global ecological signal of extinction risk in terrestrial vertebrates [Dataset].* Dryad Digital Repository. https://doi.org/10.5061/dryad.4b8gthtcq.
 
-## Running the Code
+### Key differences in this version
+This framework adjusts the uniform variance assumptions standard in frequentist models by introducing a heteroskedastic partitioning structure:
 
-### 1. Fast-Track Hypothesis Verification (Optional)
-To verify the primary dataset rankings and the multi-stressor accumulation statistics without compiling the heavy Bayesian models, run the standalone script. This step requires minimal dependencies and runs instantly on any machine:
-```bash
-python 00_verify_hypotheses.py
-```
+| Architectural Component | Original Study Engine (Frequentist PGLMM) | Replicated Pipeline Engine (PyMC / JAX) |
+| :--- | :--- | :--- |
+| **Statistical Framework** | Frequentist maximum likelihood estimation. | Full Bayesian MCMC joint variance parameter mapping. |
+| **Ecological Variance** | Assumes equal variance across all terminal tips. | Isolates unique ecological singletons to prevent overall uncertainty inflation. |
+| **Evolutionary Variance** | Fixed tree topology branch scales. | Models ancient, monotypic isolates via separate variance multipliers to protect baseline trees. |
 
-### 2. Full Bayesian Pipeline
-To reconstruct the covariance matrices from the raw `.nex` tree files and run the tri-variance regressions across all four classes, execute the main runner script:
-```bash
-python 01_run_pipeline.py
-```
-By default, the script samples 4 chains with 1,000 tuning steps and 1,000 draws per chain using the NumPyro JAX sampler backend.
+## Results of the replication
 
-## Model Estimation Results
-
+### Estimated model parameters
 The table below displays the estimated parameter means generated by the pipeline and saved to `output/global_bayesian_trivar_metrics.csv`:
 
 | Vertebrate Class | Total N Obs | Eco Singletons | Evo Isolates | Mean Beta Intercept | Mean Sigma Dense | Mean Sigma Singleton | Mean Sigma Phylo Base | Mean Sigma Monotypic |
@@ -71,47 +68,58 @@ The table below displays the estimated parameter means generated by the pipeline
 <summary><b>View expected console log output for the multi-stressor replication</b></summary>
 
 ```text
-================================================================================
-REPLICATING ANTHROPOGENIC MULTISTRESSOR FINDINGS (MUNSTERMANN ET AL.)
-================================================================================
+Replicating multi-stressor findings (Munstermann et al.)
+--------------------------------------------------------------------------------
 
- Global Primary Threat Rankings (Top 5):
-  1. AGRICULTURE                         : Impacts 4491 species
-  2. LOGGING                             : Impacts 3187 species
-  3. INVASIVE SPECIES &D DISEASE         : Impacts 2053 species
-  4. DEVELOPMENT                         : Impacts 1903 species
-  5. HUNTING & TRADE                     : Impacts 1702 species
+Top 5 primary threat rankings:
+ 1. AGRICULTURE                         : Impacts 4491 species
+ 2. LOGGING                             : Impacts 3187 species
+ 3. INVASIVE SPECIES & DISEASE          : Impacts 2053 species
+ 4. DEVELOPMENT                         : Impacts 1903 species
+ 5. HUNTING & TRADE                     : Impacts 1702 species
 
- Testing Multistressor Accumulation Hypothesis:
-  - Low-Risk Pool (0.0) Median Threats    : 2.0
-  - High-Risk Pool (1.0) Median Threats   : 2.0
-  - Mann-Whitney U Statistic             : 3002832.0
-  - Calculated p-value                   : 1.770602e-16
-  STATUS: SUCCESS. High-risk species face a significantly higher number of cumulative threats (p < 0.05).
+Testing multi-stressor accumulation hypothesis:
+ - Low-risk pool median threats   : 2.0
+ - High-risk pool median threats  : 2.0
+ - Mann-Whitney U statistic       : 3002832.0
+ - p-value                        : 1.770602e-16
+ Result: Significant cumulative threat accumulation confirmed (p < 0.05).
 
- Class-Specific Multistressor Breakdown:
-    * REPTILIA     -> Low Median: 2.0 | High Median: 2.0 | p-val: 4.9173e-02
-    * AVES         -> Low Median: 2.0 | High Median: 2.0 | p-val: 1.8607e-02
-    * AMPHIBIA     -> Low Median: 2.0 | High Median: 3.0 | p-val: 1.1581e-09
-    * MAMMALIA     -> Low Median: 2.0 | High Median: 2.0 | p-val: 3.2302e-01
-================================================================================
+Breakdown by taxonomic class:
+   * REPTILIA     -> Low Median: 2.0 | High Median: 2.0 | p-val: 4.9173e-02
+   * AVES         -> Low Median: 2.0 | High Median: 2.0 | p-val: 1.8607e-02
+   * AMPHIBIA     -> Low Median: 2.0 | High Median: 3.0 | p-val: 1.1581e-09
+   * MAMMALIA     -> Low Median: 2.0 | High Median: 2.0 | p-val: 3.2302e-01
+--------------------------------------------------------------------------------
 ```
 </details>
 
-## Methodological Comparison
+## Environment setup & dependencies
 
-This framework relaxes the uniform variance assumptions standard in frequentist PGLMMs (such as those used in the original study) by introducing a heteroskedastic partitioning structure.
+The core Bayesian models use JAX-accelerated sampling. While they can run on a CPU, an NVIDIA GPU is highly recommended for faster sampling times.
 
-### Addressing Heteroskedasticity in Cross-Domain Modeling
-Traditional macro-ecological mixed models assume homoskedastic variance across all terminal tips of a phylogeny. When applied to large global datasets, this assumption is often challenged by rare groups:
-1. **Ecological Singletons:** Highly unique species combinations that lack community peers show significant variance inflation compared to dense, clustered communities (e.g., Mammal singletons register a variance of 0.902 versus 0.342 for dense clusters). Pooling them inflates overall parameter uncertainty.
-2. **Evolutionary Isolates:** Ancient, monotypic lineages lacking close extant relatives show distinct variance expansions. Isolating these lineages protects the baseline tree topology parameters from extreme branch-length scaling distortions.
-3. **Lineage Rigidity:** The highly polytomic structure of certain groups, particularly amphibians, can over-estimate model confidence if evaluated through a single continuous covariance factor.
+### Dependencies
+Install the required packages using the pinned project requirements file:
+```bash
+pip install -r requirements.txt
+```
 
-By isolating these unique variance groups, this model stabilizes the estimated fixed-effect intercepts while accounting for uneven data distribution across both biological and cultural systems.
+## How to run the replication
 
-## Data & Attribution
+### 1. Fast-track hypothesis verification (Optional)
+Run the verification script to check basic threat counts and run background ranking tests (few dependencies):
+```bash
+python utils/check_hypotheses.py
+```
 
-This pipeline utilizes data collected and shared by the following authors:
-* **Paper Reference:** Munstermann, Maya J, Heim, Noel A, McCauley, Douglas J, Payne, Jonathan L, Upham, Nathan S, Wang, Steve C, & Knope, Matthew L (2022). *A global ecological signal of extinction risk in terrestrial vertebrates.* **Conservation Biology**, 36(3), e13852. https://doi.org/10.1111/cobi.13852
-* **Dataset Dryad Repository:** Munstermann, Maya; Heim, Noel; McCauley, Douglas et al. (2021). *A global ecological signal of extinction risk in terrestrial vertebrates [Dataset].* **Dryad Digital Repository**. https://doi.org/10.5061/dryad.4b8gthtcq
+### 2. Fit the Bayesian model
+Run the main pipeline entry script to clean the species tables, read the phylogenetic files, and execute the full tri-variance regression graphs:
+```bash
+python run_pipeline.py
+```
+
+### 3. Generate charts
+Compile figures and variance profile charts:
+```bash
+python utils/generate_plots.py
+```

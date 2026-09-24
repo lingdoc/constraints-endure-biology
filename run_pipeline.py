@@ -1,6 +1,6 @@
 """
-01_run_pipeline.py: Master execution script running data integration, matrix
-construction, and comparative Bayesian regressions across vertebrate classes.
+Main pipeline script to load data, build phylogenetic covariance matrices,
+and run Bayesian mixed models across vertebrate classes.
 """
 import os
 import gc
@@ -11,77 +11,21 @@ from Bio import Phylo
 import jax
 import scipy.stats as stats
 
-from bayesian_engine_hetero import fit_trivariance_pglmm_gpu, summarize_trivariance_metrics
+# local module imports
+from utils.bayesian_engine import fit_trivariance_pglmm_gpu, summarize_trivariance_metrics
+from utils.check_hypotheses import run_standalone_hypothesis_check
 
 warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-def replicate_anthropogenic_multistressor_findings(threats_path):
-    print("\n" + "="*80)
-    print("REPLICATING ANTHROPOGENIC MULTISTRESSOR FINDINGS (MUNSTERMANN ET AL.)")
-    print("="*80)
-
-    if not os.path.exists(threats_path):
-        print(f"Error: File not found at {threats_path}")
-        return
-
-    df_global = pd.read_csv(threats_path, low_memory=False)
-
-    explicit_threat_cols = [
-        'Development', 'Agriculture', 'Energy & Mining', 'Transportation',
-        'Hunting & Trade', 'Logging', 'Fishing', 'Human disturbance', 'Fire',
-        'Dams', 'Invasive species &d Disease', 'Pollution', 'Geological Events',
-        'Climate change & severe weather', 'Other'
-    ]
-
-    df_clean_threats = df_global[explicit_threat_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
-
-    print("\n Global Primary Threat Rankings (Top 5):")
-    threat_counts = df_clean_threats.sum().sort_values(ascending=False)
-    for rank, (threat_name, count) in enumerate(threat_counts.head(5).items(), 1):
-        print(f"  {rank}. {threat_name.upper():<35} : Impacts {int(count)} species")
-
-    df_global['sum'] = pd.to_numeric(df_global['sum'], errors='coerce').fillna(0)
-    df_global['NTVUENCR_num'] = pd.to_numeric(df_global['NTVUENCR'], errors='coerce')
-    df_test = df_global.dropna(subset=['NTVUENCR_num']).copy()
-
-    pool_low_risk = df_test[df_test['NTVUENCR_num'] == 0.0]
-    pool_high_risk = df_test[df_test['NTVUENCR_num'] == 1.0]
-
-    if len(pool_low_risk) > 0 and len(pool_high_risk) > 0:
-        print(f"\n Testing Multistressor Accumulation Hypothesis:")
-        print(f"  - Low-Risk Pool (0.0) Median Threats    : {pool_low_risk['sum'].median()}")
-        print(f"  - High-Risk Pool (1.0) Median Threats   : {pool_high_risk['sum'].median()}")
-
-        u_stat, p_val = stats.mannwhitneyu(pool_low_risk['sum'], pool_high_risk['sum'], alternative='two-sided')
-        print(f"  - Mann-Whitney U Statistic             : {u_stat}")
-        print(f"  - Calculated p-value                   : {p_val:.6e}")
-
-        if p_val < 0.05:
-            print("  STATUS: SUCCESS. High-risk species face a significantly higher number of cumulative threats (p < 0.05).")
-        else:
-            print("  STATUS: FAIL. No significant cumulative threat accumulation detected.")
-
-        print("\n Class-Specific Multistressor Breakdown:")
-        for cls in df_test['CLASS'].dropna().unique():
-            df_cls = df_test[df_test['CLASS'] == cls]
-            p_low = df_cls[df_cls['NTVUENCR_num'] == 0.0]
-            p_high = df_cls[df_cls['NTVUENCR_num'] == 1.0]
-            if len(p_low) > 0 and len(p_high) > 0:
-                _, cls_p = stats.mannwhitneyu(p_low['sum'], p_high['sum'], alternative='two-sided')
-                print(f"    * {str(cls):<12} -> Low Median: {p_low['sum'].median()} | High Median: {p_high['sum'].median()} | p-val: {cls_p:.4e}")
-    else:
-        print("\n Skipping hypothesis test: Target risk indicators could not be split safely.")
-    print("="*80 + "\n")
-
 def execute_global_vertebrate_bayesian_pipeline():
-    print("=== INITIALIZING MODEL PIPELINE ===")
+    print("Initializing model pipeline...")
 
     data_dir = "data"
     threats_path = os.path.join(data_dir, "all_sumthreats.csv")
 
     if not os.path.exists(threats_path):
-        print(f"ERROR: Threat file missing at {threats_path}")
+        print(f"Error: Threat file missing at {threats_path}")
         return
 
     df_threats_global = pd.read_csv(threats_path, low_memory=False)
@@ -95,9 +39,8 @@ def execute_global_vertebrate_bayesian_pipeline():
         {"label": "Amphibians", "traits": "amphibians.csv", "tree": "amphibian100trees.nex"}
     ]
 
-    print("\n" + "="*60)
-    print("DIAGNOSTIC REPORT: UNCLASSIFIED TAXONOMIC ISOLATES")
-    print("="*60)
+    print("\n Data diagnostics: Isolated taxonomic groups")
+    print("-"*60)
     for schema in class_pipeline_schema:
         traits_path = os.path.join(data_dir, schema["traits"])
         if os.path.exists(traits_path):
@@ -112,18 +55,17 @@ def execute_global_vertebrate_bayesian_pipeline():
                 monotypic_family_count = sum(fam_counts == 1)
             else:
                 monotypic_family_count = 0
-            print(f"Class: {schema['label']:<10} | Total Rows: {len(df_diag):<5} | Unclassified Families: {total_unclassified_isolates:<3} | Monotypic Families (N=1): {monotypic_family_count}")
+            print(f"Class: {schema['label']:<10} | Rows: {len(df_diag):<5} | Unclassified Families: {total_unclassified_isolates:<3} | Monotypic Families (N=1): {monotypic_family_count}")
         else:
             print(f"Class: {schema['label']:<10} | Local file missing.")
-    print("="*60 + "\n", flush=True)
+    print("-"*60 + "\n", flush=True)
 
     master_results_log = []
 
     for schema in class_pipeline_schema:
         label = schema["label"]
-        print(f"\n" + "="*60)
-        print(f"ESTIMATING MODEL FOR VERTEBRATE CLASS: {label.upper()}")
-        print("="*60)
+        print(f"\n Running model for: {label.upper()}")
+        print("-"*60)
 
         traits_path = os.path.join(data_dir, schema["traits"])
         tree_path = os.path.join(data_dir, schema["tree"])
@@ -143,7 +85,7 @@ def execute_global_vertebrate_bayesian_pipeline():
         df['binary_target'] = df['risk'].astype(float)
         df = df.dropna(subset=['binary_target', 'habitat.tiering', 'motility', 'feeding.mode', 'family']).copy()
 
-        # Extract consensus phylogeny structure
+        # Parse the phylogenetic tree structures
         trees = list(Phylo.parse(tree_path, "nexus"))
         target_tree = trees[0]
 
@@ -183,7 +125,7 @@ def execute_global_vertebrate_bayesian_pipeline():
             else:
                 lineage_paths_cache[sp] = [target_tree.root]
 
-        print(f"Calculating phylogenetic covariance matrix ({N}x{N})...")
+        print(f"Building phylogenetic covariance matrix ({N}x{N})...")
         phylo_cov = np.zeros((N, N))
         for i in range(N):
             path_i = lineage_paths_cache[species_list[i]]
@@ -205,7 +147,7 @@ def execute_global_vertebrate_bayesian_pipeline():
         if max_variance > 0:
             phylo_cov = (phylo_cov / max_variance) + np.eye(N) * 1e-4
 
-        # Categorize indices for ecological singletons and evolutionary isolates
+        # Group traits to find singletons and monotypic lineages
         df['functional_group'] = "h_" + df['habitat.tiering'].astype(str) + "_l_" + df['motility'].astype(str) + "_f_" + df['feeding.mode'].astype(str)
         df['group_codes'] = df['functional_group'].astype('category').cat.codes
         group_idx = df['group_codes'].to_numpy()
@@ -220,17 +162,16 @@ def execute_global_vertebrate_bayesian_pipeline():
         monotypic_mask = np.array([global_family_counts[str(f).strip().lower()] == 1 for f in df['family']], dtype=bool)
         strict_monotypic_isolates = int(sum(monotypic_mask))
 
-        print("\n" + "-"*45)
-        print(f"SAMPLE DATA METRICS ({label.upper()}):")
+        print(f"\n Dataset metrics for {label}:")
         print(f"  - Observations (N)              : {N}")
-        print(f"  - Ecological Singletons         : {strict_singletons}")
-        print(f"  - Evolutionary Isolates         : {strict_monotypic_isolates}")
+        print(f"  - Ecological singletons         : {strict_singletons}")
+        print(f"  - Evolutionary isolates         : {strict_monotypic_isolates}")
         print("-"*45 + "\n", flush=True)
 
         y_vector = df['binary_target'].to_numpy().astype(int)
         X_design = np.ones((N, 1))
 
-        # Fit Bayesian regression graph via PyMC engine
+        # Sample posterior distributions using PyMC engine
         trace_output = fit_trivariance_pglmm_gpu(
             y=y_vector,
             X=X_design,
@@ -268,15 +209,16 @@ def execute_global_vertebrate_bayesian_pipeline():
         del phylo_cov, trace_output, summary_df, df, df_traits
         gc.collect()
         jax.clear_caches()
-        print(f" -> Completed analysis for {label}. System memory registers cleared.")
+        print(f" -> Finished processing {label}. Memory cleared.")
 
-    print("\n" + "="*100)
-    print("=== PIPELINE MODEL ESTIMATION SUMMARY ===")
-    print("="*100)
+    print("\n Pipeline model estimation summary:")
+    print("-"*100)
     df_global_summary = pd.DataFrame(master_results_log)
     print(df_global_summary.to_string(index=False))
     df_global_summary.to_csv(os.path.join("output", "global_bayesian_trivar_metrics.csv"), index=False)
-    replicate_anthropogenic_multistressor_findings(threats_path)
+
+    # check hypotheses from original study
+    run_standalone_hypothesis_check(threats_path)
 
 if __name__ == "__main__":
     execute_global_vertebrate_bayesian_pipeline()
