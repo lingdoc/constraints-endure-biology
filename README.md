@@ -26,6 +26,7 @@ This repository contains the code to run Bayesian phylogenetic generalized linea
 │   ├── check_hypotheses.py                  # verification test runner
 │   └── generate_plots.py                    # figure generator
 ├── .gitignore                               
+├── calculate_connectivity.py                # measure network density of datsets
 ├── README.md                                # project documentation
 ├── requirements.txt                         # pinned package dependencies
 └── run_pipeline.py                          # main script
@@ -99,26 +100,32 @@ Breakdown by taxonomic class:
 The core Bayesian models use JAX-accelerated sampling. While they can run on a CPU, an NVIDIA GPU is highly recommended for faster sampling times.
 
 ### Dependencies
-Install the required packages using the pinned project requirements file:
+Install the required packages using the project requirements file. This process automatically installs the [`pykdensity` package](https://github.com/lingdoc/pykdensity) to handle the auditing of data connectivity:
 ```bash
 pip install -r requirements.txt
 ```
 
 ## How to run the replication
 
-### 1. Fast-track hypothesis verification (Optional)
-Run the verification script to check basic threat counts and run background ranking tests (few dependencies):
+### 1. Audit dataset connectivity (Recommended)
+Run the diagnostic script to measure background spatial and structural data clustering before fitting any models. This script loops through all vertebrate classes, calculates individual density scores using the `pykdensity` package, and logs a weighted compound average score (κ) to your terminal:
+```bash
+python calculate_connectivity.py
+```
+
+### 2. Fast-track hypothesis verification (Optional)
+Run the verification script to check basic threat counts and run background ranking tests:
 ```bash
 python utils/check_hypotheses.py
 ```
 
-### 2. Fit the Bayesian model
+### 3. Fit the Bayesian model
 Run the main pipeline entry script to clean the species tables, read the phylogenetic files, and execute the full tri-variance regression graphs:
 ```bash
 python run_pipeline.py
 ```
 
-### 3. Generate charts
+### 4. Generate charts
 Compile figures and variance profile charts:
 ```bash
 python utils/generate_plots.py
