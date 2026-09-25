@@ -108,7 +108,7 @@ pip install -r requirements.txt
 ## How to run the replication
 
 ### 1. Audit dataset connectivity (Recommended)
-Run the diagnostic script to measure background spatial and structural data clustering before fitting any models. This script loops through all vertebrate classes, calculates individual density scores using the `pykdensity` package, and logs a weighted compound average score (κ) to your terminal:
+Run the diagnostic script to measure background spatial and structural data clustering before fitting any models. This script loops through all vertebrate classes, calculates individual density scores using the `pykdensity` package, and logs a weighted compound average score (κ) to the terminal:
 ```bash
 python calculate_connectivity.py
 ```
