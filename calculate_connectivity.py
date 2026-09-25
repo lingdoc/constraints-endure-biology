@@ -17,7 +17,7 @@ data_dir = "data"
 output_csv = os.path.join("output", "vertebrate_connectivity_summary.csv")
 os.makedirs("output", exist_ok=True)
 
-print("Starting data connectivity analysis\n")
+print("\nStarting data connectivity analysis")
 
 # define the data files matching the folders in this repository
 target_classes = [
@@ -28,7 +28,9 @@ target_classes = [
 ]
 
 compiled_results = []
-total_valid_species = 0
+total_valid_spatial_species = 0
+total_valid_structural_species = 0
+running_weighted_spatial_sum = 0.0
 running_weighted_structural_sum = 0.0
 
 # 1. Data files processing loop
@@ -45,12 +47,14 @@ for target in target_classes:
     sample_size = len(df_class)
 
     # run the calculator function using standard family tree steps
+    # the package prints individual data layer diagnostics automatically
     k_spatial, k_structural = calculate_densities(
         data=df_class,
         id_col="Species",
         tree=tree_path,
         tree_type="fixed",
-        structural_depth_threshold=5
+        structural_depth_threshold=5,
+        verbose=True
     )
 
     # store the findings for the final table
@@ -61,37 +65,38 @@ for target in target_classes:
         "Structural_Density": k_structural if not pd.isna(k_structural) else "N/A"
     })
 
-    # track the counts to make sure small datasets do not skew the final average
+    # track counts to ensure small datasets do not skew final averages
+    if not pd.isna(k_spatial):
+        total_valid_spatial_species += sample_size
+        running_weighted_spatial_sum += (k_spatial * sample_size)
+
     if not pd.isna(k_structural):
-        total_valid_species += sample_size
+        total_valid_structural_species += sample_size
         running_weighted_structural_sum += (k_structural * sample_size)
 
 # 2. Save and show summary logs
-print("\n Connectivity check complete")
+print("\nConnectivity check complete")
 print("-" * 80)
 
 df_out = pd.DataFrame(compiled_results)
 df_out.to_csv(output_csv, index=False)
-print(f" Summary file saved to: {output_csv}\n")
+print(f"Summary file saved to: {output_csv}\n")
 
 # print the final table directly to the screen
 print(df_out.to_string(index=False))
+print("-" * 80)
 
-if total_valid_species > 0:
-    compound_score = running_weighted_structural_sum / total_valid_species
-    print("-" * 80)
-    print(f"Dataset average connectivity score (k): {compound_score:.4f}")
-    print("-" * 80)
-
-    # evaluate the score using the limits in our documentation guidelines
-    if compound_score > 0.15:
-        print("Result: High structural data clustering found.")
-        print("Rule  : Ideal for structure-aware models (PGLMM).")
-    elif compound_score <= 0.005:
-        print("Result: Very sparse data connections found.")
-        print("Rule  : high risk of parameter errors. Simpler flat models recommended.")
-    else:
-        print("Result: Balanced, stable connectivity signal.")
+# calculate global compound dataset averages for both layers cleanly
+if total_valid_spatial_species > 0:
+    avg_spatial = running_weighted_spatial_sum / total_valid_spatial_species
+    print(f"Dataset average spatial density score    : {avg_spatial:.4f}")
 else:
-    print("\nError: Could not calculate an average dataset score.")
-print("\n")
+    print("Dataset average spatial density score    : N/A")
+
+if total_valid_structural_species > 0:
+    avg_structural = running_weighted_structural_sum / total_valid_structural_species
+    print(f"Dataset average structural density score : {avg_structural:.4f}")
+else:
+    print("Dataset average structural density score : N/A")
+
+print("-" * 80 + "\n")
