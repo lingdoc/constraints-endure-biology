@@ -1,5 +1,5 @@
-Class,Sample_Size_N,Spatial_Density,Structural_Density
-Amphibians,3531,N/A,0.6456043316862464
-Birds,7582,N/A,0.20908669791904688
-Mammals,2718,N/A,0.1790395035428148
-Reptiles,4185,N/A,0.3550545858261889
+Class,Sample_Size_N,Spatial_Density,Structural_Density,Topology_Tier
+Amphibians,3531,N/A,0.7485354725406617,dense_topology
+Birds,7582,N/A,0.45685438380412846,dense_topology
+Mammals,2718,N/A,0.22914318940809006,moderate_topology
+Reptiles,4185,N/A,0.9669294873112797,dense_topology
