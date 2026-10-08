@@ -5,6 +5,16 @@ This repository contains the code to run Bayesian phylogenetic generalized linea
 ## Repository structure
 
 ```text
+├── amphibian_density/                       # companion network isolation experiment
+│   ├── output/                              # stability logs and plots
+│   │   ├── node_variance.csv                # logs for all 500 species for each model
+│   │   ├── parameter_transitions.png        # displays parameter trajectories
+│   │   ├── phase_transitions.csv            # logs macro results for each model
+│   │   ├── sampler_diagnostics.png          # plots model performance
+│   │   └── spectrum_3panel.png              # plots global parameters for 3 models
+│   ├── utils/                               
+│   │   └── plot_spectrum.py                 # plot generator
+│   └── density_scan.py                      # main experiment script
 ├── data/                                    # original trait tables and phylogenetic trees
 │   ├── all_sumthreats.csv                   
 │   ├── amphibian100trees.nex                
@@ -15,15 +25,16 @@ This repository contains the code to run Bayesian phylogenetic generalized linea
 │   ├── mammals.csv                          
 │   ├── reptiles.csv                         
 │   └── squamate100trees.nex                 
-├── output/                                  # pipeline outputs and results
+├── output/                                  # main replication outputs and results
 │   ├── figures/                             # plots generated from metrics
 │   │   ├── fig1_primary_threats.png         # assessment of threats to vertebrates
 │   │   ├── fig2_multistressor_loading.png   # vertebrate multistressors
-│   │   └── fig3_variance_profiles.png       # variance by category and class  
-│   └── global_bayesian_trivar_metrics.csv   # metrics from master pipeline
+│   │   └── fig3_variance_profiles.png       # variance by category and class                     
+│   ├── vertebrate_connectivity_summary.csv  # density scores by vertebrate class
+│   └── global_bayesian_trivar_metrics.csv   # metrics from main replication
 ├── utils/                                   # core utilities
-│   ├── bayesian_engine.py                   # PyMC model configuration
-│   ├── check_hypotheses.py                  # verification test runner
+│   ├── bayesian_engine.py                   # PyMC model configuration and tree parser
+│   ├── check_hypotheses.py                  # verification test
 │   └── generate_plots.py                    # figure generator
 ├── .gitignore                               
 ├── calculate_connectivity.py                # measure network density of datsets
@@ -48,7 +59,31 @@ This framework adjusts the uniform variance assumptions standard in frequentist 
 | **Ecological Variance** | Assumes equal variance across all terminal tips. | Isolates unique ecological singletons to prevent overall uncertainty inflation. |
 | **Evolutionary Variance** | Fixed tree topology branch scales. | Models ancient, monotypic isolates via separate variance multipliers to protect baseline trees. |
 
-## Results of the replication
+## Companion experiment: Amphibian density scan
+*Located in the `/amphibian_density/` subdirectory.*
+
+### What this experiment does
+This self-contained sub-experiment tests the limits of a Bayesian statistical model by observing how it breaks down under extreme data conditions.
+
+In nature, evolutionary trees provide a dense, connected map of information. However, fields like historical linguistics deal with deeply fractured data environments containing unique isolates that lack group context. To understand how statistical models handle this fragmentation, the `density_scan.py` script takes a stable group of 500 amphibian species and **systematically breaks apart their evolutionary connections over 21 steps on a logarithmic scale**.
+
+### Key findings
+As data connectivity erodes from a natural unified structure into more disconnected points, the model undergoes three clear behavioral phases:
+* **The Stable Phase:** At high connectivity, the model functions normally, sharing information across related species to keep estimate adjustments steady.
+* **The High-Uncertainty Corridor:** As connections begin to snap, the model struggles to balance unique traits against the shrinking groups. This creates an inflation zone where error bars expand dramatically.
+* **The Traction Collapse:** When connectivity drops near zero, the model hits a mechanical breaking point. It loses traction on the underlying network structure and triggers an artificial over-pooling illusion, falsely collapsing the error boundaries because it can no longer detect information variance.
+
+![MCMC Phase Transitions](./amphibian_density/output/sampler_diagnostics.png)
+
+![Macroecological Fragmentation](./amphibian_density/output/spectrum_3panel.png)
+
+### Running the Sub-Experiment
+To run the automated degradation loop and re-compile the color-coded 3-panel interval graphics, execute the following from the root directory:
+```bash
+python amphibian_density/density_scan.py
+```
+
+## Results of the main study replication
 
 ### Estimated model parameters
 The table below displays the estimated parameter means generated by the pipeline and saved to `output/global_bayesian_trivar_metrics.csv`:
