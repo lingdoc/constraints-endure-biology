@@ -1,5 +1,5 @@
 Vertebrate_Class,Total_N_Obs,Eco_Singletons,Evo_Isolates,Mean_Beta_Intercept,Mean_Sigma_Dense,Mean_Sigma_Singleton,Mean_Sigma_Phylo_Base,Mean_Sigma_Monotypic
-Mammals,2718,4,19,-0.515,0.34,0.887,3.146,1.732
-Birds,7582,3,25,-0.911,0.124,0.852,2.008,1.679
-Squamates,4185,1,10,0.975,0.283,0.965,3.495,2.666
-Amphibians,3531,0,7,-0.368,0.241,,4.028,1.34
+Mammals,2718,4,19,-0.509,0.344,0.886,3.136,1.79
+Birds,7582,3,25,-0.907,0.119,0.861,2.003,1.669
+Squamates,4185,1,10,0.992,0.28,0.946,3.477,2.674
+Amphibians,3531,0,7,-0.327,0.238,,4.036,1.284

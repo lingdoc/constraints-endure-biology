@@ -11,6 +11,7 @@ from Bio import Phylo
 import jax
 import scipy.stats as stats
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 # local module imports
 from utils.bayesian_engine import fit_trivariance_pglmm_gpu, summarize_trivariance_metrics
 from utils.check_hypotheses import run_standalone_hypothesis_check
@@ -97,57 +98,17 @@ def execute_global_vertebrate_bayesian_pipeline():
         N = len(df)
         species_list = df['match_key'].tolist()
 
-        root_distance_cache = {target_tree.root: 0.0}
-        for parent_clade in target_tree.find_clades(order="preorder"):
-            parent_dist = root_distance_cache[parent_clade]
-            for child_clade in parent_clade.clades:
-                root_distance_cache[child_clade] = parent_dist + child_clade.branch_length
-
-        family_tree_cache = {}
-        for _, row in df.iterrows():
-            sp = row['match_key']
-            fam = str(row['family']).strip().lower()
-            if sp in tip_objects_map:
-                if fam not in family_tree_cache:
-                    family_tree_cache[fam] = []
-                family_tree_cache[fam].append(tip_objects_map[sp])
-
-        lineage_paths_cache = {}
-        for idx, row in df.iterrows():
-            sp = row['match_key']
-            fam = str(row['family']).strip().lower()
-            if sp in tip_objects_map:
-                lineage_paths_cache[sp] = [target_tree.root] + target_tree.get_path(tip_objects_map[sp])
-            elif fam in family_tree_cache and len(family_tree_cache[fam]) > 0:
-                full_cousin_path = [target_tree.root] + target_tree.get_path(family_tree_cache[fam][0])
-                family_node_depth = max(1, len(full_cousin_path) - 2)
-                lineage_paths_cache[sp] = full_cousin_path[:family_node_depth]
-            else:
-                lineage_paths_cache[sp] = [target_tree.root]
-
         print(f"Building phylogenetic covariance matrix ({N}x{N})...")
-        phylo_cov = np.zeros((N, N))
-        for i in range(N):
-            path_i = lineage_paths_cache[species_list[i]]
-            phylo_cov[i, i] = root_distance_cache[path_i[-1]]
-            for j in range(i + 1, N):
-                path_j = lineage_paths_cache[species_list[j]]
-                min_length = min(len(path_i), len(path_j))
-                mrca_node = target_tree.root
-                for k in range(min_length):
-                    if path_i[k] == path_j[k]:
-                        mrca_node = path_i[k]
-                    else:
-                        break
-                shared_dist = root_distance_cache[mrca_node]
-                phylo_cov[i, j] = shared_dist
-                phylo_cov[j, i] = shared_dist
+        from utils.bayesian_engine import build_phylogenetic_covariance
+        phylo_cov = build_phylogenetic_covariance(
+            tree_path=tree_path, species_list=species_list, df=df,
+            family_col="family", id_col="match_key"
+        )
 
-        max_variance = np.max(phylo_cov)
-        if max_variance > 0:
-            phylo_cov = (phylo_cov / max_variance) + np.eye(N) * 1e-4
+        # add baseline small adjustment ridge
+        phylo_cov = phylo_cov + np.eye(N) * 1e-4
 
-        # Group traits to find singletons and monotypic lineages
+        # group traits to find singletons and monotypic lineages
         df['functional_group'] = "h_" + df['habitat.tiering'].astype(str) + "_l_" + df['motility'].astype(str) + "_f_" + df['feeding.mode'].astype(str)
         df['group_codes'] = df['functional_group'].astype('category').cat.codes
         group_idx = df['group_codes'].to_numpy()
@@ -171,7 +132,7 @@ def execute_global_vertebrate_bayesian_pipeline():
         y_vector = df['binary_target'].to_numpy().astype(int)
         X_design = np.ones((N, 1))
 
-        # Sample posterior distributions using PyMC engine
+        # sample posterior distributions using PyMC engine
         trace_output = fit_trivariance_pglmm_gpu(
             y=y_vector,
             X=X_design,
