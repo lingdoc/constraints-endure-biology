@@ -1,5 +1,5 @@
 """
-Generates figures mapping primary threat distributions, cumulative stressor
+generates figures mapping primary threat distributions, cumulative stressor
 accumulations, and estimated variance components across vertebrate classes.
 """
 import os
@@ -20,7 +20,8 @@ plt.rcParams.update({
 
 def generate_primary_threat_chart(df_global, output_dir):
     """
-    Plots the global count of impacted species across standard IUCN threat categories.
+    plots the global count of impacted species across standard iucn threat categories.
+    uses clear grayscale and colorblind safe tone adjustments for publication visibility.
     """
     print("Generating Figure 1: Primary Threat Rankings...")
 
@@ -35,9 +36,17 @@ def generate_primary_threat_chart(df_global, output_dir):
     threat_counts = df_clean_threats.sum().sort_values(ascending=True)
 
     plt.figure(figsize=(10, 6))
-    colors = ['#4A5568' if i < len(threat_counts)-3 else '#C53030' for i in range(len(threat_counts))]
 
-    threat_counts.plot(kind='barh', color=colors, edgecolor='none')
+    # okabe-ito colorblind safe: neutral dark gray background with vermilion accents for top threats
+    colors = ['#56B4E9' if i < len(threat_counts)-3 else '#D55E00' for i in range(len(threat_counts))]
+
+    ax = threat_counts.plot(kind='barh', color=colors, edgecolor='none')
+
+    # add structural hatch textures to guarantee visibility in grayscale prints
+    for idx, bar in enumerate(ax.patches):
+        if idx >= len(threat_counts) - 3:
+            bar.set_hatch('//') # distinct texture for critical top threat markers
+
     plt.xlabel('Number of Impacted Species')
     plt.ylabel('IUCN Threat Category')
     plt.title('Global Distribution of Anthropogenic Threat Pressures')
@@ -49,7 +58,8 @@ def generate_primary_threat_chart(df_global, output_dir):
 
 def generate_multistressor_boxplot(df_global, output_dir):
     """
-    Plots boxplots comparing cumulative stressor counts between low and high risk pools.
+    plots boxplots comparing cumulative stressor counts between low and high risk pools.
+    incorporates colorblind safe tones backed by geometric hatch textures.
     """
     print("Generating Figure 2: Multistressor Class Breakdown...")
 
@@ -61,15 +71,28 @@ def generate_multistressor_boxplot(df_global, output_dir):
     df_plot['CLASS'] = df_plot['CLASS'].str.capitalize()
 
     plt.figure(figsize=(10, 6))
-    sns.boxplot(
+
+    # okabe-ito safe palette definitions: sky blue vs vermilion orange
+    color_palette = ['#56B4E9', '#D55E00']
+
+    ax = sns.boxplot(
         data=df_plot,
         x='CLASS',
         y='sum',
         hue='Risk Group',
-        palette=['#2B6CB0', '#C53030'],
+        palette=color_palette,
         fliersize=1,
         linewidth=1.2
     )
+
+    # loop through boxes to inject distinct textures for color-independent evaluation
+    box_patches = [patch for patch in ax.patches if patch.get_label() == '']
+    for idx, patch in enumerate(box_patches):
+        # alternating textures across low risk and high risk boxes
+        if idx % 2 == 0:
+            patch.set_hatch('..')
+        else:
+            patch.set_hatch('\\\\')
 
     plt.xlabel('Vertebrate Taxonomic Class')
     plt.ylabel('Cumulative Anthropogenic Stressors Count')
@@ -82,7 +105,10 @@ def generate_multistressor_boxplot(df_global, output_dir):
     plt.close()
 
 def generate_variance_profile_chart(metrics_path, output_dir):
-    """Plots the full 4-partition variance components across vertebrate classes."""
+    """
+    plots the full 4-partition variance components across vertebrate classes.
+    uses distinct okabe-ito tones cross-matched with standalone line patterns.
+    """
     if not os.path.exists(metrics_path):
         print(f"Skipping Figure 3: {metrics_path} not found. Run model entry script first.")
         return
@@ -92,34 +118,33 @@ def generate_variance_profile_chart(metrics_path, output_dir):
 
     classes = df_metrics['Vertebrate_Class'].tolist()
     x = np.arange(len(classes))
-
-    # 📍 FIX: Widen the bar groups slightly to fit 4 bars instead of 3 cleanly
     width = 0.20
 
-    plt.figure(figsize=(11, 6))
+    fig, ax = plt.subplots(figsize=(11, 6))
 
-    # 📍 FIX: Add the missing Mean_Sigma_Phylo_Base parameter to the plotting engine
-    plt.bar(x - 1.5*width, df_metrics['Mean_Sigma_Dense'], width,
-            label='Dense Community Background (σ_dense)', color='#4A5568')
-    plt.bar(x - 0.5*width, df_metrics['Mean_Sigma_Singleton'].fillna(0), width,
-            label='Ecological Singletons (σ_singleton)', color='#2B6CB0')
-    plt.bar(x + 0.5*width, df_metrics['Mean_Sigma_Phylo_Base'], width,
-            label='Lineage Variance: Baseline Clades (σ_phylo_base)', color='#E67E22') # Orange marker
-    plt.bar(x + 1.5*width, df_metrics['Mean_Sigma_Monotypic'], width,
-            label='Evolutionary Isolates (σ_monotypic)', color='#C53030')
+    # complete colorblind safe okabe-ito assignments with varying textures for structural contrast
+    b1 = ax.bar(x - 1.5*width, df_metrics['Mean_Sigma_Dense'], width,
+                label='Dense Community Background (σ_dense)', color='#0072B2', edgecolor='black', linewidth=0.5)
+
+    b2 = ax.bar(x - 0.5*width, df_metrics['Mean_Sigma_Singleton'].fillna(0), width,
+                label='Ecological Singletons (σ_singleton)', color='#56B4E9', edgecolor='black', linewidth=0.5, hatch='//')
+
+    b3 = ax.bar(x + 0.5*width, df_metrics['Mean_Sigma_Phylo_Base'], width,
+                label='Lineage Variance: Baseline Clades (σ_phylo_base)', color='#E69F00', edgecolor='black', linewidth=0.5, hatch='\\\\')
+
+    b4 = ax.bar(x + 1.5*width, df_metrics['Mean_Sigma_Monotypic'], width,
+                label='Evolutionary Isolates (σ_monotypic)', color='#CC79A7', edgecolor='black', linewidth=0.5, hatch='..')
 
     plt.xlabel('Vertebrate Lineage', labelpad=10)
     plt.ylabel('Estimated Variance Parameter Means')
     plt.title('Heteroskedastic Variance Component Partitions Across Domains', pad=12)
 
-    # Position ticks right in the middle of our new 4-bar blocks
     plt.xticks(x, classes)
-    plt.ylim(0, 4.5) # Reset y-axis ceiling to fit the massive amphibian baseline spikes
+    plt.ylim(0, 4.5)
     plt.grid(axis='y', linestyle='--', alpha=0.5)
 
-    # Clean layout framing
     for spine in ['top', 'right']:
-        plt.gca().spines[spine].set_visible(False)
+        ax.spines[spine].set_visible(False)
 
     plt.legend(frameon=False, fontsize=9, loc='upper left')
     plt.tight_layout()
@@ -128,7 +153,7 @@ def generate_variance_profile_chart(metrics_path, output_dir):
     plt.close()
 
 def main():
-    # File paths point to base project folder mappings
+    """coordinates the production graphics generation loop sequence."""
     threats_path = os.path.join("data", "all_sumthreats.csv")
     metrics_path = os.path.join("output", "global_bayesian_trivar_metrics.csv")
     figures_dir = os.path.join("output", "figures")
@@ -144,7 +169,7 @@ def main():
     generate_primary_threat_chart(df_global, figures_dir)
     generate_multistressor_boxplot(df_global, figures_dir)
     generate_variance_profile_chart(metrics_path, figures_dir)
-    print(f"All verification plots saved to: {figures_dir}")
+    print(f"All verification plots successfully saved to: {figures_dir}")
 
 if __name__ == "__main__":
     main()
