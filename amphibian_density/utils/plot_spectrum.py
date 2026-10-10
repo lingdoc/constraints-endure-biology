@@ -6,6 +6,7 @@ import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 def generate_figure1_sampler_diagnostics(macro_csv, output_dir):
     """plots mcmc sampler diagnostics: e-bfmi vs divergences over a true log scale."""
@@ -241,6 +242,188 @@ def generate_figure3_node_spectrum(node_csv, output_dir):
     plt.close()
     print(f"Exported integrated comparative landscape spectrum to: {output_png}")
 
+def generate_universal_synthesis_figure(macro_csv, node_csv, output_dir):
+    """combines sampler diagnostics, multi-stage spectrum stacks, and violin densities using a color-to-greyscale safe palette."""
+    output_png = os.path.join(output_dir, "amphibian_synthesis.png")
+
+    if not os.path.exists(macro_csv) or not os.path.exists(node_csv):
+        print("Missing required CSV ledger sheets to build compilation figure.")
+        return
+
+    # load and process data matrices
+    df_macro = pd.read_csv(macro_csv)
+    df_step = df_macro.groupby("Structural_Density_κ").first().reset_index().sort_values("Structural_Density_κ", ascending=False)
+
+    df_nodes = pd.read_csv(node_csv)
+    df_phylo = df_nodes[df_nodes["Variable_Family"].str.startswith("phylo_effect")].copy()
+    if df_phylo.empty:
+        return
+    df_phylo = df_phylo.sort_values("Variable_Family").drop_duplicates(subset=["Step", "Species_Name"])
+
+    steps = sorted(df_phylo["Step"].unique())
+    baseline_step = steps[0]
+
+    df_baseline = df_phylo[df_phylo["Step"] == baseline_step].sort_values("Posterior_SD").reset_index(drop=True)
+    df_baseline["spectrum_coordinate"] = df_baseline.index
+    sorting_map = df_baseline.set_index("Species_Name")["spectrum_coordinate"].to_dict()
+
+    unique_kappas = df_phylo[["Step", "Structural_Density_κ"]].drop_duplicates()
+    mid_idx = (unique_kappas['Structural_Density_κ'] - 0.25).abs().idxmin()
+    mid_step = int(unique_kappas.loc[mid_idx, 'Step'])
+    threshold_idx = (unique_kappas['Structural_Density_κ'] - 0.10).abs().idxmin()
+    threshold_step = int(unique_kappas.loc[threshold_idx, 'Step'])
+
+    df_phylo = df_phylo.copy()
+    df_phylo["spectrum_coordinate"] = df_phylo["Species_Name"].map(sorting_map)
+
+    df_base_plot = df_phylo[df_phylo["Step"] == baseline_step].dropna(subset=["spectrum_coordinate"]).sort_values("spectrum_coordinate").reset_index(drop=True)
+    df_mid_plot = df_phylo[df_phylo["Step"] == mid_step].dropna(subset=["spectrum_coordinate"]).sort_values("spectrum_coordinate").reset_index(drop=True)
+    df_thresh_plot = df_phylo[df_phylo["Step"] == threshold_step].dropna(subset=["spectrum_coordinate"]).sort_values("spectrum_coordinate").reset_index(drop=True)
+
+    # configure integrated figure master layout mesh via manual coordinate spacing
+    fig = plt.figure(figsize=(18, 16), dpi=300)
+    gs_master = fig.add_gridspec(4, 1, height_ratios=[1.6, 1.0, 1.0, 1.0])
+    gs_master.update(top=0.93, bottom=0.06, hspace=0.36)
+
+    # explicit cell index [0] to create the nested sub-grid correctly
+    gs_row0 = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_master[0])
+    ax_diag_left = fig.add_subplot(gs_row0[0, 0])
+
+    # explicit slicing [1:] to allocate the multi-row split dashboard below Panel A
+    gs_lower = gridspec.GridSpecFromSubplotSpec(3, 2, subplot_spec=gs_master[1:], width_ratios=[1.4, 0.6], hspace=0.35, wspace=0.18)
+    ax_spec1 = fig.add_subplot(gs_lower[0, 0])
+    ax_spec2 = fig.add_subplot(gs_lower[1, 0], sharex=ax_spec1)
+    ax_spec3 = fig.add_subplot(gs_lower[2, 0], sharex=ax_spec1)
+    ax_violin = fig.add_subplot(gs_lower[:, 1])
+
+    # panel a: mcmc sampler diagnostics (dual color-to-greyscale contrast)
+    color_bfmi = '#0072B2' # deep blue -> rich dark grey in print
+    ax_diag_left.set_xlabel("Structural Network Connectivity ($\kappa$, True Log Scale)", fontweight="bold", labelpad=6)
+    ax_diag_left.set_ylabel("Mean E-BFMI Score", color=color_bfmi, fontweight="bold")
+    ax_diag_left.plot(df_step["Structural_Density_κ"], df_step["Mean_E_BFMI"], marker='o', color=color_bfmi, linewidth=2.5, label="Mean E-BFMI")
+    ax_diag_left.tick_params(axis='y', labelcolor=color_bfmi)
+    ax_diag_left.axhline(y=0.30, color='#000000', linestyle='--', alpha=0.7, linewidth=1.2, label="Critical Energy Floor (0.30)")
+    ax_diag_left.set_ylim(0.05, 0.55)
+    ax_diag_left.set_xscale('log')
+    ax_diag_left.invert_xaxis()
+    ax_diag_left.grid(True, linestyle=":", alpha=0.4, color='#b0bec5')
+
+    ax_diag_right = ax_diag_left.twinx()
+    color_div = '#E69F00' # amber orange -> crisp medium grey in print, separating the crossed lines
+    ax_diag_right.set_ylabel("Total Divergent Transitions", color=color_div, fontweight="bold")
+    ax_diag_right.plot(df_step["Structural_Density_κ"], df_step["Divergences"], marker='s', linestyle='-.', color=color_div, linewidth=1.75, label="Divergences")
+    ax_diag_right.tick_params(axis='y', labelcolor=color_div)
+    max_div = df_step["Divergences"].max()
+    ax_diag_right.set_ylim(-10, max_div * 1.10)
+
+    ax_diag_left.axvspan(0.13, 0.07, color='#f5f5f5', hatch='/', alpha=0.7, label="Stage 1: Geometric Shear")
+    ax_diag_left.axvspan(0.07, df_step["Structural_Density_κ"].min(), color='#e0e0e0', hatch='\\', alpha=0.7, label="Stage 2: Thermodynamic Freeze")
+
+    lines1, labels1 = ax_diag_left.get_legend_handles_labels()
+    lines2, labels2 = ax_diag_right.get_legend_handles_labels()
+    ax_diag_left.legend(lines1 + lines2, labels1 + labels2, loc="upper left", frameon=True, fontsize=8)
+    ax_diag_left.set_title("Panel A: MCMC Phase Transition Across Evolutionary Networks (Dual-Stage Model Failure)", fontweight="bold", fontsize=12, pad=10)
+
+    # panels b, c, d: continuous node spectrum stacks (colors + structural markers) ---
+    core_limit = 150
+    margin_limit = 400
+
+    def plot_spectrum_panel(ax, data_frame, title_text, mean_se, is_first=False):
+        ax.set_title(title_text, fontsize=11, fontweight="bold", color="#2c3e50", pad=6)
+        core_mask = data_frame["spectrum_coordinate"] <= core_limit
+        margin_mask = (data_frame["spectrum_coordinate"] > core_limit) & (data_frame["spectrum_coordinate"] <= margin_limit)
+        singleton_mask = data_frame["spectrum_coordinate"] > margin_limit
+
+        # map shape keys with explicit luminance levels to look distinct in color and grey channels
+        zones = [
+            {"mask": core_mask, "color": "#0072B2", "marker": "o", "bar_color": "#90caf9", "label": "Structural Core"},       # blue solid circle
+            {"mask": margin_mask, "color": "#E69F00", "marker": "^", "bar_color": "#ffcc80", "label": "Transition Margin"},  # amber solid triangle
+            {"mask": singleton_mask, "color": "#CC79A7", "marker": "d", "bar_color": "#f48fb1", "label": "Isolated Singletons"} # purple solid diamond
+        ]
+
+        for zone in zones:
+            sub_df = data_frame[zone["mask"]]
+            if not sub_df.empty:
+                ax.vlines(sub_df["spectrum_coordinate"],
+                          sub_df["Posterior_Mean"] - sub_df["Posterior_SD"],
+                          sub_df["Posterior_Mean"] + sub_df["Posterior_SD"],
+                          colors=zone["bar_color"], alpha=0.35, linewidth=0.6, zorder=1)
+
+                ax.scatter(sub_df["spectrum_coordinate"], sub_df["Posterior_Mean"],
+                           s=7, color=zone["color"], marker=zone["marker"], alpha=0.8, zorder=2, label=zone["label"] if is_first else "")
+
+        ax.axvline(x=core_limit, color='black', linestyle=':', alpha=0.5, linewidth=0.8)
+        ax.axvline(x=margin_limit, color='black', linestyle=':', alpha=0.5, linewidth=0.8)
+
+        if is_first:
+            ax.text(core_limit/2, 10.5, "Structural Core", fontsize=8, color="#212121", ha='center', fontweight='bold')
+            ax.text((core_limit+margin_limit)/2, 10.5, "Transition Margin", fontsize=8, color="#212121", ha='center', fontweight='bold')
+            ax.text((margin_limit+500)/2, 10.5, "Isolated Singletons", fontsize=8, color="#212121", ha='center', fontweight='bold')
+
+        ax.text(0.98, 0.08, f"Mean Node SE ($\overline{{\sigma}}$): {mean_se:.3f}", transform=ax.transAxes,
+                bbox=dict(facecolor='white', alpha=0.9, boxstyle='round,pad=0.3', edgecolor='#b0bec5'),
+                fontsize=8, fontweight='bold', ha='right', zorder=5)
+        ax.set_ylabel("Latent Effect", fontweight="bold", fontsize=9)
+        ax.set_ylim(-12, 12)
+        ax.grid(True, linestyle="--", alpha=0.15)
+
+    plot_spectrum_panel(ax_spec1, df_base_plot, f"Panel B: Baseline Tree Topology Specification ($\kappa$ = {df_base_plot['Structural_Density_κ'].iloc[0]:.4f})", df_base_plot["Posterior_SD"].mean(), is_first=True)
+    plot_spectrum_panel(ax_spec2, df_mid_plot, f"Panel C: Moderate Topology Boundary ($\kappa$ = {df_mid_plot['Structural_Density_κ'].iloc[0]:.4f})", df_mid_plot["Posterior_SD"].mean())
+    plot_spectrum_panel(ax_spec3, df_thresh_plot, f"Panel D: Critical Threshold Boundary Corridor ($\kappa$ = {df_thresh_plot['Structural_Density_κ'].iloc[0]:.4f})", df_thresh_plot["Posterior_SD"].mean())
+
+    ax_spec1.legend(loc="upper left", frameon=True, facecolor='white', edgecolor='none', fontsize=8)
+    ax_spec3.set_xlabel("Amphibian Continuity Spectrum (Ordered by Baseline Variance $\longrightarrow$)", fontweight="bold", fontsize=10, labelpad=6)
+    ax_spec3.set_xlim(-15, len(df_base_plot) + 15)
+
+    # panel e: right column uncertainty distributions (safe color violin shading)
+    ax_violin.set_title("Panel E: Sampler Uncertainty Shift", fontsize=12, fontweight="bold", color="#2c3e50", pad=12)
+    margin_filter = (df_phylo["spectrum_coordinate"] > core_limit) & (df_phylo["spectrum_coordinate"] <= margin_limit)
+    df_margin_all = df_phylo[margin_filter].copy()
+
+    v_data = [
+        df_margin_all[df_margin_all["Step"] == baseline_step]["Posterior_SD"].values,
+        df_margin_all[df_margin_all["Step"] == mid_step]["Posterior_SD"].values,
+        df_margin_all[df_margin_all["Step"] == threshold_step]["Posterior_SD"].values
+    ]
+
+    parts = ax_violin.violinplot(v_data, showmeans=False, showmedians=True, showextrema=True, widths=0.4)
+    # matched colors perfectly across sections to maintain full visual consistency
+    colors_violin = ['#0072B2', '#E69F00', '#CC79A7']
+    for idx, body in enumerate(parts['bodies']):
+        body.set_facecolor(colors_violin[idx])
+        body.set_edgecolor('#000000') # solid black outline borders to anchor the layout geometry
+        body.set_linewidth(1.0)
+        body.set_alpha(0.75) # clean transparency for high aesthetic value
+
+    parts['cmedians'].set_edgecolor('#000000')
+    parts['cmedians'].set_linewidth(2.0)
+    parts['cmins'].set_edgecolor('#212121')
+    parts['cmaxes'].set_edgecolor('#212121')
+
+    ax_violin.set_xticks([1, 2, 3])
+    ax_violin.set_xticklabels([
+        f"Baseline\n($\kappa$={df_base_plot['Structural_Density_κ'].iloc[0]:.2f})",
+        f"Margin Peak\n($\kappa$={df_mid_plot['Structural_Density_κ'].iloc[0]:.2f})",
+        f"Threshold Cross\n($\kappa$={df_thresh_plot['Structural_Density_κ'].iloc[0]:.2f})"
+    ], fontweight="bold", fontsize=9)
+    ax_violin.set_ylabel("Node Standard Error ($\sigma$)", fontweight="bold", fontsize=10)
+    ax_violin.grid(True, linestyle=":", alpha=0.3, axis='y')
+
+    ax_violin.annotate("Uncertainty Balloons\n(+29% Shift)", xy=(1.15, 3.45), xytext=(1.65, 4.35),
+                       arrowprops=dict(facecolor='#E69F00', shrink=0.08, width=1.2, headwidth=5, edgecolor='none'),
+                       fontsize=8, color='#E69F00', fontweight='bold', ha='center')
+
+    ax_violin.annotate("Traction Loss\nCollapse Loop", xy=(2.85, 3.75), xytext=(2.25, 4.55),
+                       arrowprops=dict(facecolor='#CC79A7', shrink=0.08, width=1.2, headwidth=5, edgecolor='none'),
+                       fontsize=8, color='#CC79A7', fontweight='bold', ha='center')
+
+    # save consolidated image
+    plt.suptitle("Amphibian Evolutionary Network Synthesis: MCMC Diagnostics and Node Stability", fontsize=14, fontweight="bold", y=0.97)
+
+    os.makedirs(output_dir, exist_ok=True)
+    plt.savefig(output_png, bbox_inches="tight", dpi=300)
+    plt.close()
+    print(f"Exported integrated universal publication canvas grid directly to: {output_png}")
 
 def execute_all_plots():
     local_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -251,6 +434,7 @@ def execute_all_plots():
     generate_figure1_sampler_diagnostics(macro_ledger, output_dir)
     generate_figure2_parameter_trajectories(macro_ledger, output_dir)
     generate_figure3_node_spectrum(node_ledger, output_dir)
+    generate_universal_synthesis_figure(macro_ledger, node_ledger, output_dir)
     print("All companion experiment publication graphics compiled successfully.")
 
 
