@@ -60,15 +60,15 @@ This framework adjusts the uniform variance assumptions standard in frequentist 
 | **Evolutionary Variance** | Fixed tree topology branch scales. | Models ancient, monotypic isolates via separate variance multipliers to protect baseline trees. |
 
 ## Companion experiment: Amphibian density scan
-*Located in the `/amphibian_density/` subdirectory.*
+*Located in the `amphibian_density/` subdirectory.*
 
 ### What this experiment does
 This self-contained sub-experiment tests the limits of a Bayesian statistical model by observing how it breaks down under extreme data conditions.
 
-In nature, evolutionary trees provide a dense, connected map of information. However, fields like historical linguistics deal with deeply fractured data environments containing unique isolates that lack group context. To understand how statistical models handle this fragmentation, the `density_scan.py` script takes a stable group of 500 amphibian species and **systematically breaks apart their evolutionary connections over 21 steps on a logarithmic scale**.
+In nature, evolutionary trees typically provide a dense, connected map of information. However, other fields (like historical linguistics) deal with deeply fractured data environments containing unique isolates that lack group context. To understand how statistical models handle this fragmentation, the `density_scan.py` script takes a stable group of 500 amphibian species and **systematically breaks apart their evolutionary connections over 21 steps on a logarithmic scale**.
 
 ### Key findings
-As data connectivity erodes from a natural unified structure into more disconnected points, the model undergoes three clear behavioral phases:
+As data connectivity erodes from a natural unified structure into more disconnected points, the model undergoes three clear phases:
 * **The Stable Phase:** At high connectivity, the model functions normally, sharing information across related species to keep estimate adjustments steady.
 * **The High-Uncertainty Corridor:** As connections begin to snap, the model struggles to balance unique traits against the shrinking groups. This creates an inflation zone where error bars expand dramatically.
 * **The Traction Collapse:** When connectivity drops near zero, the model hits a mechanical breaking point. It loses traction on the underlying network structure and triggers an artificial over-pooling illusion, falsely collapsing the error boundaries because it can no longer detect information variance.

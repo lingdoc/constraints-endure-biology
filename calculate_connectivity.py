@@ -1,9 +1,7 @@
 """
-calculate_connectivity.py
-
-this script checks data clustering across the biology dataset layers.
+calculate_connectivity.py - Checks data clustering across the biology dataset layers.
 it uses the installed 'pykdensity' library to measure spatial and structural
-connections across baseline and mixed configurations against the 0.10 floor.
+connections across baseline and mixed configurations.
 """
 
 import os
@@ -11,7 +9,7 @@ import pandas as pd
 import numpy as np
 from pykdensity import calculate_densities
 
-# 0. project setup
+# project setup
 data_dir = "data"
 output_csv = os.path.join("output", "vertebrate_connectivity_summary.csv")
 os.makedirs("output", exist_ok=True)
@@ -32,7 +30,7 @@ total_valid_structural_species = 0
 running_weighted_spatial_sum = 0.0
 running_weighted_structural_sum = 0.0
 
-# 1. processing loop
+# processing loop
 for target in target_classes:
     csv_path = os.path.join(data_dir, target["csv"])
     tree_path = os.path.join(data_dir, target["tree"])
@@ -91,7 +89,7 @@ for target in target_classes:
         total_valid_structural_species += sample_size
         running_weighted_structural_sum += (k_structural * sample_size)
 
-# 2. save results and display diagnostic output
+# save results and display diagnostic output
 print("\nConnectivity check complete")
 print("-" * 80)
 

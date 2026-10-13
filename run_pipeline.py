@@ -11,7 +11,7 @@ from Bio import Phylo
 import jax
 import scipy.stats as stats
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1" # assumes a second gpu (comment out if not running on gpu)
 # local module imports
 from utils.bayesian_engine import fit_trivariance_pglmm_gpu, summarize_trivariance_metrics
 from utils.check_hypotheses import run_standalone_hypothesis_check
@@ -86,7 +86,7 @@ def execute_global_vertebrate_bayesian_pipeline():
         df['binary_target'] = df['risk'].astype(float)
         df = df.dropna(subset=['binary_target', 'habitat.tiering', 'motility', 'feeding.mode', 'family']).copy()
 
-        # Parse the phylogenetic tree structures
+        # parse the phylogenetic tree
         trees = list(Phylo.parse(tree_path, "nexus"))
         target_tree = trees[0]
 

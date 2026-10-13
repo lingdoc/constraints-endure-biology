@@ -1,5 +1,5 @@
 """
-check_hypotheses.py: Standalone test verifying anthropogenic multi-stressor
+utils/check_hypotheses.py: Standalone test verifying anthropogenic multi-stressor
 accumulation metrics using baseline statistical methods.
 """
 import os
@@ -65,6 +65,6 @@ def run_standalone_hypothesis_check(threats_path):
     print("-"*80 + "\n")
 
 if __name__ == "__main__":
-    # Allows researchers to run it as a lightweight standalone command
+    # run the hypothesis tester as a standalone command
     DEFAULT_PATH = os.path.join("data", "all_sumthreats.csv")
     run_standalone_hypothesis_check(DEFAULT_PATH)

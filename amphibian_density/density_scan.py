@@ -1,5 +1,5 @@
 """
-Script to process the amphibians data and perform a sweep of models
+amphibian_density/density_scan.py - Script to process the amphibians data and perform a sweep of models
 across decaying structural density profiles to test model behavior.
 Uses binary independent (motility) and dependent (risk) variables.
 """

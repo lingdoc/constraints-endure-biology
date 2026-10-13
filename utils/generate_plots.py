@@ -1,5 +1,5 @@
 """
-generates figures mapping primary threat distributions, cumulative stressor
+utils/generate_plots.py - Generates figures mapping primary threat distributions, cumulative stressor
 accumulations, and estimated variance components across vertebrate classes.
 """
 import os

@@ -1,5 +1,5 @@
 """
-bayesian_engine.py: PyMC model specification backend for variance-partitioned
+utils/bayesian_engine.py: PyMC model specification backend for variance-partitioned
 phylogenetic mixed models using JAX sampling. Automated Multi-GPU / Single-GPU Routing.
 """
 import numpy as np

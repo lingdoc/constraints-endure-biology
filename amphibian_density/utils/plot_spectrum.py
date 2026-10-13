@@ -1,5 +1,5 @@
 """
-script to plot results from `density_scan.py` on the amphibians dataset.
+amphibian_density/utils/plot_spectrum.py - Script to plot results from `density_scan.py` on the amphibians dataset.
 """
 import os
 import sys
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 def generate_figure1_sampler_diagnostics(macro_csv, output_dir):
-    """plots mcmc sampler diagnostics: e-bfmi vs divergences over a true log scale."""
+    """plots MCMC sampler diagnostics: E-BFMI vs divergences over a true log scale."""
     output_png = os.path.join(output_dir, "sampler_diagnostics.png")
     if not os.path.exists(macro_csv): return
 
@@ -56,7 +56,7 @@ def generate_figure1_sampler_diagnostics(macro_csv, output_dir):
     print(f"Exported log-scaled sampler diagnostics to: {output_png}")
 
 def generate_figure2_parameter_trajectories(macro_csv, output_dir):
-    """plots parameter structural inversion curves over a clean log scale."""
+    """plots parameter structural inversion curves over a log scale."""
     output_png = os.path.join(output_dir, "parameter_transitions.png")
     if not os.path.exists(macro_csv): return
 
@@ -296,7 +296,7 @@ def generate_universal_synthesis_figure(macro_csv, node_csv, output_dir):
     ax_spec3 = fig.add_subplot(gs_lower[2, 0], sharex=ax_spec1)
     ax_violin = fig.add_subplot(gs_lower[:, 1])
 
-    # panel a: mcmc sampler diagnostics (dual color-to-greyscale contrast)
+    # panel A: MCMC sampler diagnostics (dual color-to-greyscale contrast)
     color_bfmi = '#0072B2' # deep blue -> rich dark grey in print
     ax_diag_left.set_xlabel("Structural Network Connectivity ($\kappa$, True Log Scale)", fontweight="bold", labelpad=6)
     ax_diag_left.set_ylabel("Mean E-BFMI Score", color=color_bfmi, fontweight="bold")
@@ -324,7 +324,7 @@ def generate_universal_synthesis_figure(macro_csv, node_csv, output_dir):
     ax_diag_left.legend(lines1 + lines2, labels1 + labels2, loc="upper left", frameon=True, fontsize=8)
     ax_diag_left.set_title("Panel A: MCMC Phase Transition Across Evolutionary Networks (Dual-Stage Model Failure)", fontweight="bold", fontsize=12, pad=10)
 
-    # panels b, c, d: continuous node spectrum stacks (colors + structural markers) ---
+    # panels B, C, D: continuous node spectrum stacks (colors + structural markers) ---
     core_limit = 150
     margin_limit = 400
 
@@ -375,7 +375,7 @@ def generate_universal_synthesis_figure(macro_csv, node_csv, output_dir):
     ax_spec3.set_xlabel("Amphibian Continuity Spectrum (Ordered by Baseline Variance $\longrightarrow$)", fontweight="bold", fontsize=10, labelpad=6)
     ax_spec3.set_xlim(-15, len(df_base_plot) + 15)
 
-    # panel e: right column uncertainty distributions (safe color violin shading)
+    # panel E: right column uncertainty distributions (safe color violin shading)
     ax_violin.set_title("Panel E: Sampler Uncertainty Shift", fontsize=12, fontweight="bold", color="#2c3e50", pad=12)
     margin_filter = (df_phylo["spectrum_coordinate"] > core_limit) & (df_phylo["spectrum_coordinate"] <= margin_limit)
     df_margin_all = df_phylo[margin_filter].copy()
@@ -387,7 +387,7 @@ def generate_universal_synthesis_figure(macro_csv, node_csv, output_dir):
     ]
 
     parts = ax_violin.violinplot(v_data, showmeans=False, showmedians=True, showextrema=True, widths=0.4)
-    # matched colors perfectly across sections to maintain full visual consistency
+    # match colors across sections to maintain visual consistency
     colors_violin = ['#0072B2', '#E69F00', '#CC79A7']
     for idx, body in enumerate(parts['bodies']):
         body.set_facecolor(colors_violin[idx])
