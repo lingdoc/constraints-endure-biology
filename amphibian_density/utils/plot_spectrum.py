@@ -316,7 +316,7 @@ def generate_universal_synthesis_figure(macro_csv, node_csv, output_dir):
     max_div = df_step["Divergences"].max()
     ax_diag_right.set_ylim(-10, max_div * 1.10)
 
-    ax_diag_left.axvspan(0.13, 0.07, color='#f5f5f5', hatch='/', alpha=0.7, label="Stage 1: Geometric Shear")
+    ax_diag_left.axvspan(0.13, 0.07, color='#d4d4d4', hatch='/', alpha=0.7, label="Stage 1: Geometric Shear")
     ax_diag_left.axvspan(0.07, df_step["Structural_Density_κ"].min(), color='#e0e0e0', hatch='\\', alpha=0.7, label="Stage 2: Thermodynamic Freeze")
 
     lines1, labels1 = ax_diag_left.get_legend_handles_labels()
@@ -389,11 +389,15 @@ def generate_universal_synthesis_figure(macro_csv, node_csv, output_dir):
     parts = ax_violin.violinplot(v_data, showmeans=False, showmedians=True, showextrema=True, widths=0.4)
     # match colors across sections to maintain visual consistency
     colors_violin = ['#0072B2', '#E69F00', '#CC79A7']
+    hatches_violin = ['/', 'x', None]
     for idx, body in enumerate(parts['bodies']):
         body.set_facecolor(colors_violin[idx])
-        body.set_edgecolor('#000000') # solid black outline borders to anchor the layout geometry
+        body.set_edgecolor('#37474f') # charcoal outline
+        # apply hatch only if a texture pattern is defined
+        if hatches_violin[idx] is not None:
+            body.set_hatch(hatches_violin[idx])
         body.set_linewidth(1.0)
-        body.set_alpha(0.75) # clean transparency for high aesthetic value
+        body.set_alpha(0.75) # clean transparency
 
     parts['cmedians'].set_edgecolor('#000000')
     parts['cmedians'].set_linewidth(2.0)
