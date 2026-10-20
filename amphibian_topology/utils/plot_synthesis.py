@@ -1,8 +1,7 @@
 """
 amphibian_density/utils/render_figure1_synthesis.py
-Consolidated production graphics engine to compile "Figure 1" for publication.
-Merges macro TSI phase transitions with micro-level latent node uncertainty distributions,
-contrasting the Frozen and Adaptive Routed tree pruning regimes.
+Compiles Figure 1 for publication by combining macro-level topology transitions
+with micro-level node uncertainty distributions for the two models.
 """
 import os
 import re
@@ -12,41 +11,41 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-# Establish standardized folder geometry
+# Set up project directories and output paths
 utils_dir = os.path.dirname(os.path.abspath(__file__))
 amphibian_dir = os.path.dirname(utils_dir)
 output_dir = os.path.join(amphibian_dir, "output")
 
 def render_publication_figure1():
-    # Define file ledger entry paths
+    # Define paths for the macro and micro tracking files
     frozen_macro_path = os.path.join(output_dir, "pruning_transitions_frozen.csv")
     routed_macro_path = os.path.join(output_dir, "pruning_transitions_routed.csv")
     frozen_node_path = os.path.join(output_dir, "node_variance_frozen.csv")
     routed_node_path = os.path.join(output_dir, "node_variance_routed.csv")
 
-    # Target the new dedicated plotting directory
+    # Set up the output directory for figures
     plots_dir = os.path.join(output_dir, "figures")
     os.makedirs(plots_dir, exist_ok=True)
 
     final_output_png = os.path.join(plots_dir, "phase_synthesis.png")
 
-    # Safe checking assertions to protect execution arrays
+    # Confirm all required data sheets exist before proceeding
     for path in [frozen_macro_path, routed_macro_path, frozen_node_path, routed_node_path]:
         if not os.path.exists(path):
-            print(f"❌ Structural Synthesis Failure: Missing ledger sheet at -> {path}")
+            print(f"Error: Missing required tracking data at -> {path}")
             return
 
-    print("🚀 Ingesting experimental logging matrices...")
+    print("Loading log data sheets...")
     df_macro_f = pd.read_csv(frozen_macro_path).sort_values("Step")
     df_macro_r = pd.read_csv(routed_macro_path).sort_values("Step")
     df_node_f = pd.read_csv(frozen_node_path)
     df_node_r = pd.read_csv(routed_node_path)
 
-    # ✅ FIXED: Build clean map dictionaries to look up exact TSI values by Step index
+    # Map the metric stability values by step index for easy lookup
     tsi_map_frozen = df_macro_f.set_index("Step")["Topology_Stability_Index"].to_dict()
     tsi_map_routed = df_macro_r.set_index("Step")["Topology_Stability_Index"].to_dict()
 
-    # Clean and isolate node effect trajectories
+    # Filter out missing values and isolate node trajectories
     def clean_node_frame(df):
         sub = df[df["Variable_Vector"].str.contains("phylo|effect|u|b", case=False, na=False)].copy()
         if sub.empty:
@@ -56,15 +55,13 @@ def render_publication_figure1():
     df_node_f = clean_node_frame(df_node_f)
     df_node_r = clean_node_frame(df_node_r)
 
-    # Establish uniform spectrum sorting coordinates based on Frozen Baseline
+    # Establish uniform spectrum coordinates based on the baseline configuration
     steps_list = sorted(df_node_f["Step"].unique())
     baseline_step = steps_list[0]
 
-    # =========================================================================
-    # REVISED METHODOLOGICAL STEP ANCHORS TO ALIGN WITH STEP 07 FRAGMENTATION
-    # =========================================================================
-    mid_step = 8   # Strict Traction Loss Tipping Frontier
-    deep_step = 12 # Post-Collapse Tail (Captures the Run 2 Divergence containment)
+    # Select step intervals to capture the network breakdown stages
+    mid_step = 7
+    deep_step = 20
 
     df_base_sort = df_node_f[df_node_f["Step"] == baseline_step].sort_values("Posterior_SD").reset_index(drop=True)
     df_base_sort["spectrum_coordinate"] = df_base_sort.index
@@ -73,26 +70,18 @@ def render_publication_figure1():
     for df_target in [df_node_f, df_node_r]:
         df_target["spectrum_coordinate"] = df_target["Species_Name"].map(sorting_map)
 
-    # Master figure grid canvas setup
-    # =========================================================================
-    # REFACTORED CANVAS METRICS: Expanding Row 1 to absorb upper whitespace
-    # =========================================================================
-    # Increased height ratio of the first row from 1.0 to 1.3 to expand the plots upward
+    # Set up the master canvas dimensions and grid spacing
     fig = plt.figure(figsize=(20, 18), dpi=300)
     gs_master = fig.add_gridspec(3, 1, height_ratios=[0.8, 2.0, 0.9])
-
-    # Tightened hspace and brought the top boundary up to 0.95 right against the title
     gs_master.update(top=0.92, bottom=0.05, hspace=0.24)
 
-    # Okabe-Ito Colorblind-Safe Color Palette declarations
-    c_tsi = '#0072B2'        # Deep Sapphire Blue
-    c_horizon = '#D55E00'    # Vermilion Orange Red
-    c_f_div = '#CC79A7'      # Muted Purple Pink
-    c_r_div = '#009E73'      # Slate Jade Green
+    # Color definitions using colorblind safe values
+    c_tsi = '#0072B2'
+    c_horizon = '#D55E00'
+    c_f_div = '#CC79A7'
+    c_r_div = '#009E73'
 
-    # =========================================================================
-    # ROW 1: MACRO TSI TRANSITIONS & SAMPLER STRAIN COUPLING (EXPANDED VIEW)
-    # =========================================================================
+    # Row 1: stability values and sampler errors
     gs_row1 = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_master[0], wspace=0.22)
     ax_macro_f = fig.add_subplot(gs_row1[0, 0])
     ax_macro_r = fig.add_subplot(gs_row1[0, 1])
@@ -114,7 +103,7 @@ def render_publication_figure1():
 
         ax.set_xticks(data["Step"])
         ax.set_xlabel("Pruning Grid Step Index", fontweight="bold", labelpad=6)
-        ax.set_title(title_text, fontweight="bold", fontsize=12, pad=12) # Slightly larger font padding
+        ax.set_title(title_text, fontweight="bold", fontsize=12, pad=12)
 
         handles = [l_tsi, l_horiz, l_div]
         ax.legend(handles, [h.get_label() for h in handles], loc="upper right", frameon=True, framealpha=0.9)
@@ -122,9 +111,7 @@ def render_publication_figure1():
     plot_macro_tier(ax_macro_f, df_macro_f, c_f_div, "Panel A: Frozen Architecture Phase Interface", "FROZEN")
     plot_macro_tier(ax_macro_r, df_macro_r, c_r_div, "Panel B: Adaptive Routed Isolate Architecture Phase Interface", "ROUTED")
 
-    # =========================================================================
-    # ROW 2: LATENT NODE UNCERTAINTY MATRIX SPECTRUNS (3x2 BLOCK SUBGRID)
-    # =========================================================================
+    # Row 2: Node parameter spectrum grids
     gs_row2 = gridspec.GridSpecFromSubplotSpec(3, 2, subplot_spec=gs_master[1], hspace=0.35, wspace=0.18)
 
     core_limit, margin_limit = 150, 400
@@ -136,7 +123,7 @@ def render_publication_figure1():
     def plot_spectrum_cell(ax, node_df, step_idx, mode_label, is_left, tsi_lookup_dict):
         sub_df = node_df[node_df["Step"] == step_idx].dropna(subset=["spectrum_coordinate"]).sort_values("spectrum_coordinate")
 
-        # ✅ FIXED: Isolate TSI explicitly using the cross-referenced map dictionary
+        # Retrieve stability index value for the active step
         tsi_val = tsi_lookup_dict.get(step_idx, 0.0)
 
         panel_letter = "C" if step_idx == 0 else ("D" if step_idx == mid_step else "E")
@@ -161,12 +148,12 @@ def render_publication_figure1():
         ax.set_ylabel("Latent Effect", fontsize=8)
         ax.grid(True, linestyle="--", alpha=0.15)
 
-        # Fix assignment mapping loops to grab overall frame traits securely
+        # Extract the average standard deviation within the margin parameters
         overall_m_df = sub_df[(sub_df["spectrum_coordinate"] > core_limit) & (sub_df["spectrum_coordinate"] <= margin_limit)]
         mean_sd = overall_m_df["Posterior_SD"].mean() if not overall_m_df.empty else 0.0
         ax.text(0.98, 0.06, f"Margin Mean $\sigma$: {mean_sd:.3f}", transform=ax.transAxes, bbox=dict(facecolor='white', alpha=0.8, boxstyle='round', edgecolor='#cfd8dc'), fontsize=7, ha='right')
 
-    # Construct the columns: Left side is Frozen, Right side is Routed
+    # Construct columns for comparison: Left side is Frozen, Right side is Routed
     steps_to_plot = [baseline_step, mid_step, deep_step]
     for row_idx, target_step in enumerate(steps_to_plot):
         ax_left = fig.add_subplot(gs_row2[row_idx, 0])
@@ -181,13 +168,11 @@ def render_publication_figure1():
             ax_left.set_xlabel("Amphibian Continuity Alignment", fontweight="bold", fontsize=9)
             ax_right.set_xlabel("Amphibian Continuity Alignment", fontweight="bold", fontsize=9)
 
-    # =========================================================================
-    # ROW 3: UNCERTAINTY PROFILE SHIFTS (DISTRIBUTION VIOLINS SIDE-BY-SIDE)
-    # =========================================================================
+    # Row 3: Standard error distributions
     gs_row3 = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_master[2], wspace=0.22)
     ax_viol_f = fig.add_subplot(gs_row3[0, 0])
 
-    # ✅ UPDATED: Lock the right panel's y-axis directly to the left panel's baseline
+    # Standardize the right panel vertical axis with the left panel baseline
     ax_viol_r = fig.add_subplot(gs_row3[0, 1], sharey=ax_viol_f)
 
     def render_violin_suite(ax, node_df, title_text, bodies_color, hatch_pat):
@@ -212,14 +197,14 @@ def render_publication_figure1():
         ax.set_title(title_text, fontweight="bold", fontsize=11, color="#2c3e50")
         ax.grid(True, linestyle=":", alpha=0.3, axis='y')
 
-    render_violin_suite(ax_viol_f, df_node_f, "Panel D: Frozen Framework Uncertainty Inflation Profiles", c_f_div, "/")
-    render_violin_suite(ax_viol_r, df_node_r, "Panel E: Routed Framework Isolate Uncertainty Track Flattening", c_r_div, None)
-    # ✅ ADDED: Anchor a standardized vertical height layout across both distribution metrics
-    ax_viol_f.set_ylim(0.7, 3.2)
+    render_violin_suite(ax_viol_f, df_node_f, "Panel F: Frozen Framework Uncertainty Inflation Profiles", c_f_div, "/")
+    render_violin_suite(ax_viol_r, df_node_r, "Panel G: Routed Framework Isolate Uncertainty Track Flattening", c_r_div, None)
+    # Anchor a standardized vertical height layout across both distribution metrics
+    ax_viol_f.set_ylim(0.5, 3.2)
 
     # Master canvas output parameters
-    plt.suptitle("Figure 1: Macro-to-Micro Evolutionary Disconnection and Sampler Phase Inversions\n"
-                 "[Amphibian Network Paradigm: Naive Frozen Taxonomy vs Adaptive Isolate Sub-Graph Routing]",
+    # plt.suptitle("Figure 1: Macro-to-Micro Evolutionary Disconnection and Sampler Phase Inversions\n"
+    plt.suptitle("[Amphibian Network Paradigm: Naive Frozen Taxonomy vs Adaptive Isolate Sub-Graph Routing]",
                  fontsize=15, fontweight="bold", y=0.97)
 
     plt.savefig(final_output_png, bbox_inches="tight", dpi=300)

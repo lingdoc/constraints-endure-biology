@@ -1,6 +1,6 @@
 """
-amphibian_topology/prune_trees.py - Script to perform an ordered physical tree pruning sweep
-and harvest feature trajectories alongside individual node variance metrics.
+amphibian_topology/prune_trees.py - Performs an ordered tree pruning sweep,
+tracking feature trajectories and individual node variance metrics.
 """
 import os
 import sys
@@ -15,12 +15,12 @@ import arviz as az
 from Bio import Phylo
 from unittest.mock import patch
 
-# Allow python to import from the repository root directory
+# Set up imports from the repository root directory
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-# Hardware-specific execution configurations
+# Set up hardware configurations
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "true"
 os.environ["XLA_FLAGS"] = "--xla_gpu_force_compilation_parallelism=4"
@@ -46,9 +46,9 @@ def standard_stability_sampler(*args, **kwargs):
 
 def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitions.csv", nodefile="node_variance_grid.csv"):
     strategy_label = "ROUTED" if routed else "FROZEN"
-    print(f"\nInitializing targeted evolutionary dismantling via ordered root-down tree pruning [AMPHIBIANS]...")
-    print(f" -> Strategy Layer: {strategy_label}")
-    print(f" -> Reporting to: {transitionsfile} and {nodefile}\n")
+    print(f"\nStarting tree pruning experiment for amphibians...")
+    print(f" -> Strategy: {strategy_label}")
+    print(f" -> Saving results to: {transitionsfile} and {nodefile}\n")
 
     data_dir = os.path.join(repo_root, "data")
     threats_path = os.path.join(data_dir, "all_sumthreats.csv")
@@ -61,7 +61,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
     temp_tree_path = os.path.join(local_output_dir, f"temp_targeted_tree_{strategy_label.lower()}.nex")
     os.makedirs(local_output_dir, exist_ok=True)
 
-    # 1. Pipeline data ingest and baseline harmonization
+    # 1. Ingest and match datasets
     df_threats = pd.read_csv(threats_path, low_memory=False)
     df_threats.columns = df_threats.columns.str.strip().str.lower()
     df_threats['match_key'] = df_threats['species'].astype(str).str.strip().str.lower().str.replace(' ', '_')
@@ -82,7 +82,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
     df_full = df_full.dropna(subset=['binary_target', 'habitat.tiering', 'motility', 'feeding.mode', 'family', 'order']).copy()
     df_full['binary_iv'] = (df_full['motility'] == '3').astype(float)
 
-    # 2. Dynamic Stratified Taxonomic Allocation (N=1000)
+    # 2. Select families using stratified sample allocation
     df_full['functional_group'] = "h_" + df_full['habitat.tiering'].astype(str) + "_l_" + df_full['motility'].astype(str) + "_f_" + df_full['feeding.mode'].astype(str)
     group_counts_full = df_full['functional_group'].value_counts()
     stable_baseline_pool = df_full[df_full['functional_group'].isin(group_counts_full[group_counts_full > 5].index)].copy()
@@ -107,7 +107,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
 
     df_baseline = pd.concat(assigned_dfs).reset_index(drop=True)
 
-    # Global explicit ordering to lock down structural row footprints
+    # Sort species keys alphabetically
     df_baseline = df_baseline.sort_values(by='match_key').reset_index(drop=True)
     N = len(df_baseline)
     species_list = df_baseline['match_key'].tolist()
@@ -135,9 +135,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
     prunable_node_registry.sort(key=lambda x: x[1], reverse=True)
     num_prunable_nodes = len(prunable_node_registry)
 
-    # =========================================================================
-    # 4. FIXED LOGARITHMIC QUANTILE PRUNING SEQUENCE
-    # =========================================================================
+    # 4. Generate the logarithmic quantile pruning grid
     log_base = np.logspace(0, -3, num=21)
     pruning_fractions = (1.0 - log_base) / (1.0 - 0.001)
 
@@ -148,7 +146,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
     node_log = []
 
     for run_idx, p_fraction in enumerate(pruning_fractions):
-        print(f"\n Processing Experiment Step {run_idx:02d}/20 | LOG-QUANTILE Grid: {p_fraction*100:.1f}%")
+        print(f"\n Processing step {run_idx:02d}/20 | Pruned Fraction: {p_fraction*100:.1f}%")
         print("-" * 75)
 
         pruned_tree = copy.deepcopy(base_tree)
@@ -184,38 +182,38 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
 
         Phylo.write(pruned_tree, temp_tree_path, "nexus")
 
-        # 5. Execute pytstability curves
+        # 5. Compute network stability metrics
         struct_list = [col for col in df_pruned.columns if col.lower() in ["order", "family"]]
         try:
             _, struct_metrics, tsi_current = calculate_densities(
                 data=df_pruned, id_col="species", tree=temp_tree_path,
                 tree_type="adaptive", coord_cols=None, spatial_cats=None,
-                struct_cats=struct_list, spatial_km=500.0, struct_depth=8, verbose=False
+                struct_cats=struct_list, spatial_km=500.0, struct_depth=8,
+                verbose=False
             )
             k_current = float(struct_metrics["kappa"])
             p_isolated_current = float(struct_metrics["P_isolated"])
             s_giant_current = float(struct_metrics["S_giant"])
         except Exception as e:
-            print(f" Execution Failure at Step {run_idx}: {e}")
+            print(f" Warning: Metasurface check failed at step {run_idx}: {e}")
             k_current = 0.6499 * (1.0 - p_fraction)
             p_isolated_current = p_fraction
             s_giant_current = 1.0000 * (1.0 - p_fraction)
             tsi_current = np.nan
 
-        # 6. Rebuild covariance matrices from physical cuts
+        # 6. Rebuild phylogenetic covariance matrix from modified branch lengths
         species_list = df_pruned['match_key'].tolist()
         V_matrix = build_phylogenetic_covariance(
             tree_path=temp_tree_path, species_list=species_list, df=df_pruned,
             family_col="family", order_col="order", id_col="match_key",
-            blend_weights=(1.0, 0.0, 0.0) # 100% pure branch length, 0% text padding
-            # blend_weights=(0.50, 0.30, 0.20)
+            blend_weights=(1.0, 0.0, 0.0)
         )
 
-        # set matrix for better convergence
+        # Standardize matrix diagonals and apply numerical jitter floor
         np.fill_diagonal(V_matrix, 1.0)
-        V_matrix += np.eye(N) * 1e-3  # Jitter floor to maintain positive-definiteness on GPU
+        V_matrix += np.eye(N) * 1e-3
 
-        # 7. Re-map factors
+        # 7. Map categorical index factors
         df_pruned['functional_group'] = "h_" + df_pruned['habitat.tiering'].astype(str) + "_l_" + df_pruned['motility'].astype(str) + "_f_" + df_pruned['feeding.mode'].astype(str)
         df_pruned['group_codes'] = df_pruned['functional_group'].astype('category').cat.codes
         group_idx = df_pruned['group_codes'].to_numpy()
@@ -232,7 +230,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
         df_design = pd.DataFrame({'Intercept': 1.0, 'Hopping_Trait': df_pruned['binary_iv']})
         X_design = df_design.to_numpy()
 
-        # 8. Execute MCMC sampler over targeted broken architecture
+        # 8. Execute the bayesian MCMC sampler over the modified matrix layout
         try:
             with patch('pymc.sample', new=standard_stability_sampler):
                 trace = fit_trivariance_pglmm_gpu(
@@ -252,13 +250,13 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
             summary_df = az.summary(trace)
             status = " Traction loss" if divergences > 5 or mean_bfmi < 0.30 else " Stable"
 
-            # ✅ FIXED FEATURE METRIC EXTRACTION:
-            # We specifically look for the second coordinate (beta[1]) tracking the motility trait effect size
+            # Extract the second parameter index
             if "beta[1]" in summary_df.index:
                 row_key = "beta[1]"
             elif "beta" in summary_df.index:
                 row_key = "beta"
             else:
+                # Fallback to the second row index string if named differently
                 row_key = summary_df.index[1] if len(summary_df.index) > 1 else summary_df.index[0]
 
             feat_mean = float(summary_df.loc[row_key, "mean"]) if row_key in summary_df.index else np.nan
@@ -272,8 +270,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
                 "Feature_Estimate_Mean": feat_mean, "Feature_Estimate_SD": feat_sd
             })
 
-            # ✅ INDIVIDUAL SPECIES NODE VARIANCE HARVESTING ENGINE:
-            # Dynamically tracks individual posterior standard deviations for all 1000 species dimensions
+            # Record posterior distributions for all individual species parameters
             node_vars = [v for v in trace.posterior.data_vars if len(trace.posterior[v].shape) >= 2 and trace.posterior[v].shape[-1] == N]
 
             for var_name in node_vars:
@@ -292,10 +289,10 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
                         "Posterior_Mean": float(row["mean"]), "Posterior_SD": float(row["sd"])
                     })
 
-            print(f" Step {run_idx:02d} Complete | Genuine κ: {k_current:.4f} | Divergences: {divergences} | TSI: {tsi_current:.4f} | Feature Mean: {feat_mean:.4f}")
+            print(f" Step {run_idx:02d} complete | κ: {k_current:.4f} | Divergences: {divergences} | TSI: {tsi_current:.4f} | Feature Mean: {feat_mean:.4f}")
 
         except Exception as e:
-            print(f" Execution Failure at Step {run_idx}: {e}")
+            print(f" Failure running model at step {run_idx}: {e}")
             experiment_log.append({
                 "Step": run_idx, "Pruned_Fraction": p_fraction, "Calculated_Kappa_κ": k_current,
                 "P_isolated": p_isolated_current, "S_giant": s_giant_current,
@@ -304,7 +301,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
                 "Feature_Estimate_Mean": np.nan, "Feature_Estimate_SD": np.nan
             })
 
-        # Serialize progressive checkpoint logs to disk
+        # Save progressive file check outputs to the output directory
         pd.DataFrame(experiment_log).to_csv(output_report_path, index=False)
         if node_log:
             pd.DataFrame(node_log).to_csv(node_report_path, index=False)
@@ -316,14 +313,15 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
     if os.path.exists(temp_tree_path):
         os.remove(temp_tree_path)
 
-    print(f"\n Targeted tree physical pruning sweep finalized. Summary output saved to: {output_report_path}")
+    print(f"\nExperiment sweep finished. Final output matrices saved to: {output_report_path}")
 
 if __name__ == "__main__":
-    # Sweep Run 1: Verkerk Baseline Replication Loop (Frozen condition frame)
+    # Run the standard frozen framework sweep
     run_targeted_tree_experiment(routed=False, transitionsfile="pruning_transitions_frozen.csv", nodefile="node_variance_frozen.csv")
-    # Sweep Run 2: Adaptive Singleton Routing Loop (Routed condition frame)
+    # Run the adaptive isolate routing sweep
     run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitions_routed.csv", nodefile="node_variance_routed.csv")
 
     sys.path.insert(0, os.path.dirname(__file__))
-    from amphibian_density.utils.plot_synthesis import render_publication_figure1
+    from amphibian_topology.utils.plot_synthesis import render_publication_figure1
+    # plot the synthesis figure
     render_publication_figure1()
