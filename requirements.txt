@@ -10,4 +10,4 @@ pytensor==2.31.7
 scipy==1.18.1
 seaborn==0.13.2
 numpyro>=0.15.0
-git+https://github.com/lingdoc/pykdensity
+git+https://github.com/lingdoc/pytstability

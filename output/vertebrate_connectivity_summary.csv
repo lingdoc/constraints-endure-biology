@@ -1,5 +1,5 @@
-Class,Sample_Size_N,Spatial_Density,Structural_Density,Topology_Tier
-Amphibians,3531,N/A,0.7485354725406617,dense_topology
-Birds,7582,N/A,0.45685438380412846,dense_topology
-Mammals,2718,N/A,0.22914318940809006,moderate_topology
-Reptiles,4185,N/A,0.9669294873112797,dense_topology
+Class,Sample_Size_N,Spatial_Density,Structural_Density,Topology_Stability_Index,Operational_Status
+Amphibians,3531,,0.7477869425236453,0.2870364319581034,stable pooling backbone
+Birds,7582,,0.3228163705018422,0.06191740748106448,stable pooling backbone
+Mammals,2718,,0.19705270524371257,0.02640908333704573,moderate geometric shear
+Reptiles,4185,,0.9661514194142332,0.33633188156846106,stable pooling backbone

@@ -5,7 +5,7 @@ This repository contains the code to run Bayesian phylogenetic generalized linea
 ## Repository structure
 
 ```text
-├── amphibian_density/                       # companion network isolation experiment
+├── amphibian_topology/                      # companion network isolation experiment
 │   ├── output/                              # stability logs and plots
 │   │   ├── node_variance.csv                # logs for all 500 species for each model
 │   │   ├── parameter_transitions.png        # displays parameter trajectories
@@ -60,7 +60,7 @@ This framework adjusts the uniform variance assumptions standard in frequentist 
 | **Evolutionary Variance** | Fixed tree topology branch scales. | Models ancient, monotypic isolates via separate variance multipliers to protect baseline trees. |
 
 ## Companion experiment: Amphibian density scan
-*Located in the `amphibian_density/` subdirectory.*
+*Located in the `amphibian_topology/` subdirectory.*
 
 ### What this experiment does
 This self-contained sub-experiment tests the limits of a Bayesian statistical model by observing how it breaks down under extreme data conditions.
@@ -73,14 +73,12 @@ As data connectivity erodes from a natural unified structure into more disconnec
 * **The High-Uncertainty Corridor:** As connections begin to snap, the model struggles to balance unique traits against the shrinking groups. This creates an inflation zone where error bars expand dramatically.
 * **The Traction Collapse:** When connectivity drops near zero, the model hits a mechanical breaking point. It loses traction on the underlying network structure and triggers an artificial over-pooling illusion, falsely collapsing the error boundaries because it can no longer detect information variance.
 
-![MCMC Phase Transitions](./amphibian_density/output/sampler_diagnostics.png)
-
-![Macroecological Fragmentation](./amphibian_density/output/spectrum_3panel.png)
+![MCMC Phase Transitions and Fragmentation](./amphibian_topology/output/figures/figure1_comprehensive_synthesis.png)
 
 ### Running the Sub-Experiment
-To run the automated degradation loop and re-compile the color-coded 3-panel interval graphics, execute the following from the root directory:
+To run the automated tree-pruning experiment and re-compile the color-coded 3-panel interval graphics, execute the following from the root directory:
 ```bash
-python amphibian_density/density_scan.py
+python amphibian_topology/prune_trees.py
 ```
 
 ## Results of the main study replication
@@ -135,7 +133,7 @@ Breakdown by taxonomic class:
 The core Bayesian models use JAX-accelerated sampling. While they can run on a CPU, an NVIDIA GPU is highly recommended for faster sampling times.
 
 ### Dependencies
-Install the required packages using the project requirements file. This process automatically installs the [`pykdensity` package](https://github.com/lingdoc/pykdensity) to handle the auditing of data connectivity:
+Install the required packages using the project requirements file. This process automatically installs the [`pytstability` package](https://github.com/lingdoc/pytstability) to handle the auditing of data connectivity:
 ```bash
 pip install -r requirements.txt
 ```
@@ -143,7 +141,7 @@ pip install -r requirements.txt
 ## How to run the replication
 
 ### 1. Audit dataset connectivity (Recommended)
-Run the diagnostic script to measure background spatial and structural data clustering before fitting any models. This script loops through all vertebrate classes, calculates individual density scores using the `pykdensity` package, and logs a weighted compound average score (κ) to the terminal:
+Run the diagnostic script to measure background spatial and structural data clustering before fitting any models. This script loops through all vertebrate classes, calculates individual density scores using the `pytstability` package, and logs topology metrics to the terminal:
 ```bash
 python calculate_connectivity.py
 ```
