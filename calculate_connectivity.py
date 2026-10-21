@@ -55,7 +55,7 @@ for target in target_classes:
 
     try:
         # Compute spatial and structural densities using standard baseline settings
-        spatial_metrics, struct_metrics, tsi_current = calculate_densities(
+        spatial_metrics, struct_metrics, tsi_current, gamma_current = calculate_densities(
             data=df_class,
             id_col="Species",
             tree=tree_path,
@@ -64,8 +64,7 @@ for target in target_classes:
             spatial_cats=None,
             struct_cats=struct_list if struct_list else None,
             spatial_km=500.0,
-            struct_depth="ratio_0.85",  # Fixed baseline threshold ratio
-            domain="biology",
+            struct_depth=8,  # Fixed baseline threshold ratio
             verbose=False
         )
 
@@ -77,6 +76,7 @@ for target in target_classes:
         k_spatial = np.nan
         k_structural = np.nan
         tsi_current = np.nan
+        gamma_current = np.nan
 
     # Categorize the topological stability using the 0.0018 threshold boundary
     if not pd.isna(tsi_current) and tsi_current <= 0.0018:
@@ -93,6 +93,7 @@ for target in target_classes:
         "Spatial_Density": k_spatial if not pd.isna(k_spatial) else np.nan,
         "Structural_Density": k_structural if not pd.isna(k_structural) else np.nan,
         "Topology_Stability_Index": tsi_current if not pd.isna(tsi_current) else np.nan,
+        "Critical_Horizon": gamma_current if not pd.isna(gamma_current) else np.nan,
         "Operational_Status": tier_status
     })
 
@@ -115,7 +116,8 @@ print(f"Summary sheet saved to: {output_csv}\n")
 print(df_out.to_string(index=False, formatters={
     "Spatial_Density": lambda x: f"{x:.4f}" if not pd.isna(x) else "N/A",
     "Structural_Density": lambda x: f"{x:.4f}" if not pd.isna(x) else "N/A",
-    "Topology_Stability_Index": lambda x: f"{x:.5f}" if not pd.isna(x) else "N/A"
+    "Topology_Stability_Index": lambda x: f"{x:.5f}" if not pd.isna(x) else "N/A",
+    "Critical_Horizon": lambda x: f"{x:.5f}" if not pd.isna(x) else "N/A"
 }))
 print("-" * 80)
 

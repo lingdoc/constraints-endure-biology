@@ -185,7 +185,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
         # 5. Compute network stability metrics
         struct_list = [col for col in df_pruned.columns if col.lower() in ["order", "family"]]
         try:
-            _, struct_metrics, tsi_current = calculate_densities(
+            _, struct_metrics, tsi_current, gamma_current = calculate_densities(
                 data=df_pruned, id_col="species", tree=temp_tree_path,
                 tree_type="adaptive", coord_cols=None, spatial_cats=None,
                 struct_cats=struct_list, spatial_km=500.0, struct_depth=8,
@@ -200,6 +200,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
             p_isolated_current = p_fraction
             s_giant_current = 1.0000 * (1.0 - p_fraction)
             tsi_current = np.nan
+            gamma_current = np.nan
 
         # 6. Rebuild phylogenetic covariance matrix from modified branch lengths
         species_list = df_pruned['match_key'].tolist()
@@ -265,7 +266,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
             experiment_log.append({
                 "Step": run_idx, "Pruned_Fraction": p_fraction, "Calculated_Kappa_κ": k_current,
                 "P_isolated": p_isolated_current, "S_giant": s_giant_current,
-                "Topology_Stability_Index": tsi_current,
+                "Topology_Stability_Index": tsi_current, "Critical_Horizon": gamma_current,
                 "Status": status, "Divergences": divergences, "Mean_E_BFMI": mean_bfmi,
                 "Feature_Estimate_Mean": feat_mean, "Feature_Estimate_SD": feat_sd
             })
@@ -296,7 +297,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
             experiment_log.append({
                 "Step": run_idx, "Pruned_Fraction": p_fraction, "Calculated_Kappa_κ": k_current,
                 "P_isolated": p_isolated_current, "S_giant": s_giant_current,
-                "Topology_Stability_Index": tsi_current,
+                "Topology_Stability_Index": tsi_current, "Critical_Horizon": gamma_current,
                 "Status": " CRASH", "Divergences": np.nan, "Mean_E_BFMI": np.nan,
                 "Feature_Estimate_Mean": np.nan, "Feature_Estimate_SD": np.nan
             })
