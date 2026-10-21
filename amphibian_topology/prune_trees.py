@@ -185,15 +185,17 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
         # 5. Compute network stability metrics
         struct_list = [col for col in df_pruned.columns if col.lower() in ["order", "family"]]
         try:
-            _, struct_metrics, tsi_current, gamma_current = calculate_densities(
+            t_metrics = calculate_densities(
                 data=df_pruned, id_col="species", tree=temp_tree_path,
                 tree_type="adaptive", coord_cols=None, spatial_cats=None,
                 struct_cats=struct_list, spatial_km=500.0, struct_depth=8,
                 verbose=False
             )
-            k_current = float(struct_metrics["kappa"])
-            p_isolated_current = float(struct_metrics["P_isolated"])
-            s_giant_current = float(struct_metrics["S_giant"])
+            k_current = float(t_metrics["structural_metrics"].get("kappa", np.nan))
+            p_isolated_current = float(t_metrics["structural_metrics"].get("P_isolated", np.nan))
+            s_giant_current = float(t_metrics["structural_metrics"].get("S_giant", np.nan))
+            tsi_current = float(t_metrics.get("topology_stability_index", np.nan))
+            gamma_current = float(t_metrics.get("critical_horizon", np.nan))
         except Exception as e:
             print(f" Warning: Metasurface check failed at step {run_idx}: {e}")
             k_current = 0.6499 * (1.0 - p_fraction)

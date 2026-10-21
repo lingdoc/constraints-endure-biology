@@ -55,7 +55,7 @@ for target in target_classes:
 
     try:
         # Compute spatial and structural densities using standard baseline settings
-        spatial_metrics, struct_metrics, tsi_current, gamma_current = calculate_densities(
+        t_metrics = calculate_densities(
             data=df_class,
             id_col="Species",
             tree=tree_path,
@@ -64,12 +64,14 @@ for target in target_classes:
             spatial_cats=None,
             struct_cats=struct_list if struct_list else None,
             spatial_km=500.0,
-            struct_depth=8,  # Fixed baseline threshold ratio
+            struct_depth=8,  # baseline threshold ratio
             verbose=False
         )
 
-        k_spatial = float(spatial_metrics["kappa"]) if not pd.isna(spatial_metrics["kappa"]) else np.nan
-        k_structural = float(struct_metrics["kappa"]) if not pd.isna(struct_metrics["kappa"]) else np.nan
+        k_spatial = float(t_metrics["spatial_metrics"].get("kappa", np.nan))
+        k_structural = float(t_metrics["structural_metrics"].get("kappa", np.nan))
+        tsi_current = float(t_metrics.get("topology_stability_index", np.nan))
+        gamma_current = float(t_metrics.get("critical_horizon", np.nan))
 
     except Exception as e:
         print(f"  Warning: Could not compute densities for {target['name']}: {e}")
