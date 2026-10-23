@@ -86,30 +86,68 @@ def render_publication_figure1():
     ax_macro_f = fig.add_subplot(gs_row1[0, 0])
     ax_macro_r = fig.add_subplot(gs_row1[0, 1])
 
-    def plot_macro_tier(ax, data, div_color, title_text, label_suffix):
-        ax.set_ylabel("Topology Stability Index (TSI, Log-Y)", color=c_tsi, fontweight="bold", labelpad=18)
+    c_bfmi = '#56B4E9'
+
+    def plot_macro_tier(ax, data, div_color, title_text, label_suffix, is_left_panel=True):
+        # 1. Left Primary Axis: Topology Stability Index (TSI)
+        if is_left_panel:
+            ax.set_ylabel("Topology Stability Index (TSI, Log-Y)", color=c_tsi, fontweight="bold", labelpad=12)
+            ax.tick_params(axis='y', labelcolor=c_tsi, pad=6)
+        else:
+            ax.set_ylabel("", color=c_tsi)
+            ax.tick_params(axis='y', labelleft=False, labelcolor='none')
+
         l_tsi, = ax.plot(data["Step"], data["Topology_Stability_Index"], marker='o', color=c_tsi, linewidth=2.5, label="TSI Metric", zorder=5)
         ax.set_yscale('log')
         ax.set_ylim(0.0008, 0.60)
         ax.grid(True, linestyle=":", alpha=0.4, which="both")
-        l_horiz = ax.axhline(y=0.0018, color=c_horizon, linestyle='--', linewidth=1.5, label="Collapse Horizon (Γ)", zorder=4)
 
+        # align structural horizon
+        l_horiz = ax.axhline(y=0.0037, color=c_horizon, linestyle='--', linewidth=1.5, label="Structural Horizon ($\Gamma$)", zorder=4)
+
+        # 2. Right Axis 1: Total Divergent Transitions
         ax_div = ax.twinx()
-        ax_div.set_ylabel(f"Total Divergent Transitions ({label_suffix})", color=div_color, fontweight="bold", labelpad=8)
+        ax_div.set_ylabel(f"Total Divergent Transitions ({label_suffix})", color=div_color, fontweight="bold", labelpad=12)
         l_div, = ax_div.plot(data["Step"], data["Divergences"], marker='x', linestyle='-', color=div_color, linewidth=1.75, label="MCMC Divergences", zorder=6)
         ax_div.set_yscale('symlog', linthresh=1.0)
-        ax_div.set_ylim(-0.5, max(120, data["Divergences"].max() * 1.15))
-        ax_div.tick_params(axis='y', labelcolor=div_color)
+        ax_div.set_ylim(0, 1000.0)
+        ax_div.spines['right'].set_bounds(0, 1000.0)
+        ax_div.tick_params(axis='y', labelcolor=div_color, pad=6)
 
+        # 3. Right Axis 2: Mean E-BFMI
+        ax_bfmi = ax.twinx()
+        l_bfmi, = ax_bfmi.plot(data["Step"], data["Mean_E_BFMI"], marker='s', linestyle=':', color=c_bfmi, linewidth=2.0, label="Mean E-BFMI", zorder=7)
+        ax_bfmi.set_ylim(0.0, 1.0)
+
+        # An E-BFMI below 0.30 is the standard indicator of poor sample mixing
+        l_energy_floor = ax_bfmi.axhline(y=0.30, color=c_bfmi, linestyle=':', linewidth=1.5, label="Energy Limit (0.30)", zorder=3)
+
+        if is_left_panel:
+            ax_bfmi.spines['right'].set_position(('outward', 58))
+            ax_bfmi.set_ylabel("Energy Bayesian Fraction of Missing Info (E-BFMI)", color=c_bfmi, fontweight="bold", labelpad=12)
+            ax_bfmi.tick_params(axis='y', labelcolor=c_bfmi, pad=6)
+        else:
+            ax_bfmi.set_ylabel("", color=c_bfmi)
+            ax_bfmi.spines['right'].set_visible(False)
+            ax_bfmi.tick_params(axis='y', which='both', left=False, right=False, labelright=False)
+
+        # Formatting constraints
+        ax.tick_params(axis='x', which='major', pad=6)
         ax.set_xticks(data["Step"])
         ax.set_xlabel("Pruning Grid Step Index", fontweight="bold", labelpad=6)
         ax.set_title(title_text, fontweight="bold", fontsize=12, pad=12)
 
-        handles = [l_tsi, l_horiz, l_div]
-        ax.legend(handles, [h.get_label() for h in handles], loc="upper right", frameon=True, framealpha=0.9)
+        # Update the legend to include the new independent energy floor line
+        handles = [l_tsi, l_horiz, l_div, l_bfmi, l_energy_floor]
+        ax.legend(handles, [h.get_label() for h in handles], loc="upper right", frameon=True, framealpha=0.9, fontsize=7)
 
-    plot_macro_tier(ax_macro_f, df_macro_f, c_f_div, "Panel A: Frozen Architecture Phase Interface", "FROZEN")
-    plot_macro_tier(ax_macro_r, df_macro_r, c_r_div, "Panel B: Adaptive Routed Isolate Architecture Phase Interface", "ROUTED")
+        ax.set_box_aspect(0.35)
+        ax_div.set_box_aspect(0.35)
+        ax_bfmi.set_box_aspect(0.35)
+
+    # Call functions explicitly passing structural layout indicators
+    plot_macro_tier(ax_macro_f, df_macro_f, c_f_div, "Panel A: Frozen Architecture Phase Interface", "FROZEN", is_left_panel=True)
+    plot_macro_tier(ax_macro_r, df_macro_r, c_r_div, "Panel B: Adaptive Routed Isolate Architecture Phase Interface", "ROUTED", is_left_panel=False)
 
     # Row 2: Node parameter spectrum grids
     gs_row2 = gridspec.GridSpecFromSubplotSpec(3, 2, subplot_spec=gs_master[1], hspace=0.35, wspace=0.18)
@@ -209,7 +247,7 @@ def render_publication_figure1():
 
     plt.savefig(final_output_png, bbox_inches="tight", dpi=300)
     plt.close()
-    print(f"🚀 Success! Consolidated universal publication Figure 1 graphic compiled cleanly at: {final_output_png}")
+    print(f"Consolidated universal publication Figure 1 graphic compiled at: {final_output_png}")
 
 if __name__ == "__main__":
     render_publication_figure1()
