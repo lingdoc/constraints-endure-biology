@@ -71,8 +71,8 @@ In biology, evolutionary trees typically provide a dense, highly connected map o
 ### Key findings
 As data connectivity erodes from a natural unified structure into an absolute archipelago, the model highlights a distinct phase transition:
 * **The Connected Baseline (Steps 0–6):** The model functions smoothly, using shared lineage paths to distribute parameter variance evenly and keep sampling errors very low.
-* **The Traction Loss Frontier (Step 7):** The network hits a structural phase collapse as deep ancestral backbones break. The Topology Stability Index (TSI) falls below the critical threshold line (`Γ = 0.0018`), directly predicting a drop in the sampler's exploration energy.
-* **The Post-Collapse Response (Steps 8–12):** Immediately following the failure, unmitigated nodes in the **Frozen Frame** suffer localized uncertainty ballooning, where standard error bounds expand dramatically. By contrast, the **Routed Frame** isolates these drifting singletons, flattening the uncertainty tracks and maintaining variance containment through the rest of the breakdown lifecycle.
+* **The Traction Loss Frontier (Step 7):** The network hits a structural phase collapse as deep ancestral backbones break. The Topology Stability Index (TSI) falls below the critical threshold line (`Γ = 0.004`), directly predicting a drop in the sampler's exploration energy.
+* **The Post-Collapse Response (Steps 8–12):** Immediately following the failure, unmitigated nodes in the **Frozen** model suffer localized uncertainty ballooning, where standard error bounds expand dramatically. By contrast, the **Routed** model isolates these drifting singletons, flattening the uncertainty tracks and maintaining variance containment through the rest of the breakdown lifecycle.
 
 ![MCMC Phase Transitions and Fragmentation](./amphibian_topology/output/figures/phase_synthesis.png)
 
