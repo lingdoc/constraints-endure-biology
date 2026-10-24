@@ -292,7 +292,7 @@ def run_targeted_tree_experiment(routed=True, transitionsfile="pruning_transitio
                         "Posterior_Mean": float(row["mean"]), "Posterior_SD": float(row["sd"])
                     })
 
-            print(f" Step {run_idx:02d} complete | κ: {k_current:.4f} | Divergences: {divergences} | TSI: {tsi_current:.4f} | Feature Mean: {feat_mean:.4f}")
+            print(f" Step {run_idx:02d} complete | κ: {k_current:.4f} | Divergences: {divergences} | TSI: {tsi_current:.4f} | Γ: {gamma_current:.4f} | Feature Mean: {feat_mean:.4f}")
 
         except Exception as e:
             print(f" Failure running model at step {run_idx}: {e}")
