@@ -1,9 +1,11 @@
 """
-amphibian_density/utils/render_figure1_synthesis.py
+amphibian_density/utils/plot_synthesis.py
 Compiles Figure 1 for publication by combining macro-level topology transitions
 with micro-level node uncertainty distributions for the two models.
+Reviewed version plotting the dynamic mass-weighted max horizon frontier.
 """
 import os
+import io
 import re
 import sys
 import pandas as pd
@@ -80,13 +82,12 @@ def render_publication_figure1():
     c_horizon = '#D55E00'
     c_f_div = '#CC79A7'
     c_r_div = '#009E73'
+    c_bfmi = '#56B4E9'
 
     # Row 1: stability values and sampler errors
     gs_row1 = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_master[0], wspace=0.22)
     ax_macro_f = fig.add_subplot(gs_row1[0, 0])
     ax_macro_r = fig.add_subplot(gs_row1[0, 1])
-
-    c_bfmi = '#56B4E9'
 
     def plot_macro_tier(ax, data, div_color, title_text, label_suffix, is_left_panel=True):
         # 1. Left Primary Axis: Topology Stability Index (TSI)
@@ -97,13 +98,25 @@ def render_publication_figure1():
             ax.set_ylabel("", color=c_tsi)
             ax.tick_params(axis='y', labelleft=False, labelcolor='none')
 
-        l_tsi, = ax.plot(data["Step"], data["Topology_Stability_Index"], marker='o', color=c_tsi, linewidth=2.5, label="TSI Metric", zorder=5)
+        l_tsi, = ax.plot(data["Step"], data["Topology_Stability_Index"], marker='o', color=c_tsi, linewidth=2.5, label="TSI Metric", zorder=6)
+
+        # dynamic mass-weighted logarithmic ceiling curve
+        l_horiz, = ax.plot(data["Step"], data["Critical_Horizon"], marker='s', linestyle='--', color=c_horizon, linewidth=2.0, label="Dynamic Danger Horizon ($\Gamma$)", zorder=5)
+
         ax.set_yscale('log')
         ax.set_ylim(0.0008, 0.60)
         ax.grid(True, linestyle=":", alpha=0.4, which="both")
 
-        # align structural horizon
-        l_horiz = ax.axhline(y=0.0037, color=c_horizon, linestyle='--', linewidth=1.5, label="Structural Horizon ($\Gamma$)", zorder=4)
+        # Background hatching for Topological Stability Regimes
+        # Regime 1: High-connectivity (Steps 0 -> 4) - Left blank
+
+        # Regime 2: Intermediate-connectivity / Geometric Shear (Steps 4 -> 7)
+        ax.axvspan(4, 7, facecolor='none', edgecolor='#3a3f42', hatch='//',
+                   linewidth=0.5, alpha=0.35, zorder=1, label="Transitional Shear")
+
+        # Regime 3: Low-connectivity / Fragmented Archipelago (Steps 7 -> 20)
+        ax.axvspan(7, 20, facecolor='none', edgecolor='#b0bec5', hatch='\\\\\\',
+                   linewidth=0.5, alpha=0.35, zorder=1, label="Fragmented")
 
         # 2. Right Axis 1: Total Divergent Transitions
         ax_div = ax.twinx()
@@ -137,7 +150,7 @@ def render_publication_figure1():
         ax.set_xlabel("Pruning Grid Step Index", fontweight="bold", labelpad=6)
         ax.set_title(title_text, fontweight="bold", fontsize=12, pad=12)
 
-        # Update the legend to include the new independent energy floor line
+        # Update the legend parameters
         handles = [l_tsi, l_horiz, l_div, l_bfmi, l_energy_floor]
         ax.legend(handles, [h.get_label() for h in handles], loc="upper right", frameon=True, framealpha=0.9, fontsize=7)
 
@@ -164,8 +177,10 @@ def render_publication_figure1():
         # Retrieve stability index value for the active step
         tsi_val = tsi_lookup_dict.get(step_idx, 0.0)
 
+        # Standardize sub-panel letter designations
         panel_letter = "C" if step_idx == 0 else ("D" if step_idx == mid_step else "E")
-        ax.set_title(f"Panel {panel_letter}_{mode_label[:1]}: {mode_label} Spectrum (Step {step_idx} | TSI = {tsi_val:.4f})", fontsize=9, fontweight="bold")
+        panel_suffix = "F" if "Frozen" in mode_label else "R"
+        ax.set_title(f"Panel {panel_letter}_{panel_suffix}: {mode_label} Spectrum (Step {step_idx} | TSI = {tsi_val:.4f})", fontsize=9, fontweight="bold")
 
         c_mask = sub_df["spectrum_coordinate"] <= core_limit
         m_mask = (sub_df["spectrum_coordinate"] > core_limit) & (sub_df["spectrum_coordinate"] <= margin_limit)
@@ -209,8 +224,6 @@ def render_publication_figure1():
     # Row 3: Standard error distributions
     gs_row3 = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_master[2], wspace=0.22)
     ax_viol_f = fig.add_subplot(gs_row3[0, 0])
-
-    # Standardize the right panel vertical axis with the left panel baseline
     ax_viol_r = fig.add_subplot(gs_row3[0, 1], sharey=ax_viol_f)
 
     def render_violin_suite(ax, node_df, title_text, bodies_color, hatch_pat):
@@ -230,18 +243,18 @@ def render_publication_figure1():
         parts['cmedians'].set_linewidth(1.5)
 
         ax.set_xticks([1, 2, 3])
-        ax.set_xticklabels([f"Baseline\n(Step {baseline_step})", f"Inflection Collapse\n(Step {mid_step})", f"Deep Fragmented\n(Step {deep_step})"], fontweight="bold", fontsize=8)
+        ax.set_xticklabels([f"Baseline\n(Step {baseline_step})",
+                            f"Inflection Collapse\n(Step {mid_step})",
+                            f"Deep Fragmented\n(Step {deep_step})"],
+                           fontweight="bold", fontsize=8)
         ax.set_ylabel("Node Standard Error ($\sigma$)", fontweight="bold", fontsize=9)
         ax.set_title(title_text, fontweight="bold", fontsize=11, color="#2c3e50")
         ax.grid(True, linestyle=":", alpha=0.3, axis='y')
 
     render_violin_suite(ax_viol_f, df_node_f, "Panel F: Frozen Framework Uncertainty Inflation Profiles", c_f_div, "/")
     render_violin_suite(ax_viol_r, df_node_r, "Panel G: Routed Framework Isolate Uncertainty Track Flattening", c_r_div, None)
-    # Anchor a standardized vertical height layout across both distribution metrics
     ax_viol_f.set_ylim(0.5, 3.2)
 
-    # Master canvas output parameters
-    # plt.suptitle("Figure 1: Macro-to-Micro Evolutionary Disconnection and Sampler Phase Inversions\n"
     plt.suptitle("[Amphibian Network Paradigm: Naive Frozen Taxonomy vs Adaptive Isolate Sub-Graph Routing]",
                  fontsize=15, fontweight="bold", y=0.97)
 
