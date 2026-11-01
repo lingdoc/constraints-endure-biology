@@ -88,14 +88,14 @@ def render_uncertainty_comparison():
 
     # Plot Frequentist envelope with cross-hatch texture and alternate dash-dot style
     ax.plot(x_coords, f_est, color=color_frequentist, marker='s', linestyle='-.', linewidth=2,
-            label='Frequentist GP-GLMM (MLE)')
+            label='Frequentist GP-GLMM (Profile MLE)')
     ax.fill_between(x_coords, f_low, f_high, facecolor='none', edgecolor=color_frequentist,
-                    hatch='\\', alpha=0.15, label='Frequentist 95% Confidence Interval')
+                    hatch='\\', alpha=0.15, label='Frequentist 95% Profile Confidence Interval')
 
     # Dotted reference line at zero
-    ax.axhline(y=0, color='black', linestyle='--', linewidth=1.2, alpha=0.7)
+    ax.axhline(y=0, color='black', linestyle='--', linewidth=1.3, alpha=0.7)
 
-    # Label adjustments
+    # Labels
     ax.set_title('Cross-Framework Uncertainty Profiles Under Fragmented Asymmetry', fontweight='bold', pad=14, fontsize=12)
     ax.set_xlabel('Number of Nested Counterexample Anomalies ($N_{anom}$)', labelpad=10)
     ax.set_ylabel(r'Global Slope Parameter Bounds ($\beta_{slope}$)', labelpad=10)
