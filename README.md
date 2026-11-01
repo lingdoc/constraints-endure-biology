@@ -5,17 +5,22 @@ This repository contains the code to run Bayesian phylogenetic generalized linea
 ## Repository structure
 
 ```text
-├── amphibian_topology/                      # companion network isolation experiment
+├── amphibian_topology/                      # network isolation and skew experiments
 │   ├── output/                              # stability logs and plots
-│   │   ├── figures/                         
+│   │   ├── figures/                          
+│   │   │   ├── framework_uncertainty.png    # plot of model certainties
 │   │   │   └── phase_synthesis.png          # plots macro curves and node errors
+│   │   ├── mcmc_traces/                     # skew experiment traces for Bayesian models
+│   │   ├── framework_skew_matrix.csv        # results from the skew experiment
 │   │   ├── node_variance_frozen.csv         # logs node results for the frozen model
 │   │   ├── node_variance_routed.csv         # logs node results for the routed model
 │   │   ├── pruning_transitions_frozen.csv   # logs macro results for the frozen model
 │   │   └── pruning_transitions_routed.csv   # logs macro results for the routed model
 │   ├── utils/                               
-│   │   └── plot_synthesis.py                # script to compile figure 1 panels
-│   └── prune_trees.py                       # main tree pruning experiment script
+│   │   ├── plot_skew.py                     # plot skew uncertainties
+│   │   └── plot_synthesis.py                # plot pruning results
+│   ├── prune_trees.py                       # tree pruning experiment script
+│   └── prune_trees.py                       # skew simulation script
 ├── data/                                    # original trait tables and phylogenetic trees
 │   ├── all_sumthreats.csv                   
 │   ├── amphibian100trees.nex                
@@ -60,27 +65,40 @@ This framework adjusts the uniform variance assumptions standard in frequentist 
 | **Ecological Variance** | Assumes equal variance across all terminal tips. | Isolates unique ecological singletons to prevent overall uncertainty inflation. |
 | **Evolutionary Variance** | Fixed tree topology branch scales. | Models ancient, monotypic isolates via separate variance multipliers to protect baseline trees. |
 
-## Companion experiment: Amphibian density scan
+## Companion experiments: Connectivity and skew diagnostics
 *Located in the `amphibian_topology/` subdirectory.*
 
-### What this experiment does
-This self-contained sub-experiment tests the structural limits of our Bayesian statistical model by observing how it breaks down under extreme data conditions.
+### 1. Lineage fragmentation scan (`prune_trees.py`)
+This sub-experiment tracks how the core Bayesian engine responds as data connectivity degrades. In macroecology, phylogenies typically provide dense, highly connected paths of information sharing. However, other domains (such as historical linguistics) deal with deeply fractured data networks containing isolated singletons that lack group context.
 
-In biology, evolutionary trees typically provide a dense, highly connected map of information sharing. However, other fields (like historical linguistics) deal with deeply fractured data environments containing unique isolates that lack group context. To understand how statistical models handle this fragmentation, the `prune_trees.py` script takes a stable group of 1,000 amphibian species and **systematically severs their ancestral connections over 21 steps using an absolute distance scale**. It compares a standard baseline tracking frame (Frozen) against an adaptive isolate routing frame (Routed).
+To observe how this fragmentation impacts inference, `prune_trees.py` takes a stable baseline pool of 1,000 amphibian species and systematically slices their ancestral branches over 21 steps. It contrasts a standard tracking layout (**Frozen**) against an isolate-insulated parameter track (**Routed**), mapping the critical phase boundary where ancestral backbone degradation triggers a complete sampling traction collapse.
+
+### 2. Contingency matrix skew sweep (`simulate_skew.py`)
+This script evaluates the joint interaction between severe network fragmentation and extreme matrix asymmetry under a conditional implication hypothesis (X ⇒ Y). Holding network connectivity fixed at a highly degraded operational regime (TSI ≤ Γ, extracted directly from Step 7 of the pruning sweep), the engine systematically varies the number of nested counterexample anomalies across eight incremental steps (N_anom ∈ [0, 1, 2, 3, 4, 5, 8, 10]).
+
+For each step, it runs a side-by-side benchmark comparing a Centered Bayesian model, a Non-Centered Bayesian model, and a frequentist profile maximum likelihood optimizer (GP-GLMM) to map out exactly where different model architectures succumb to parameter erasure. The consolidated results are automatically logged to `output/framework_skew_matrix.csv`.
 
 ### Key findings
-As data connectivity erodes from a natural unified structure into an absolute archipelago, the model highlights a distinct phase transition:
-* **The Connected Baseline (Steps 0–6):** The model functions smoothly, using shared lineage paths to distribute parameter variance evenly and keep sampling errors very low.
-* **The Traction Loss Frontier (Step 7):** The network hits a structural phase collapse as deep ancestral backbones break. The Topology Stability Index (TSI) falls below the critical threshold line (`Γ = 0.004`), directly predicting a drop in the sampler's exploration energy.
-* **The Post-Collapse Response (Steps 8–12):** Immediately following the failure, unmitigated nodes in the **Frozen** model suffer localized uncertainty ballooning, where standard error bounds expand dramatically. By contrast, the **Routed** model isolates these drifting singletons, flattening the uncertainty tracks and maintaining variance containment through the rest of the breakdown lifecycle.
+* **The Topological Mirage:** When counterexamples are rare singletons nested within massive cladal structures dominated by the global background population (N_anom ≤ 4), both the Centered and Non-Centered Bayesian models succumb to the Topological Mirage. Hierarchical prior shrinkage gravity forces the group variance container (σ_family) to collapse toward zero, mathematically erasing the exceptions and manufacturing a highly confident, false-positive universal statement (95% CIs entirely above zero).
+* **Profile Likelihood Resilience:** Conversely, the frequentist GP-GLMM engine successfully resists this shrinkage pressure. Operating via an unpenalized profile likelihood surface, its regional random slope coefficients absorb localized variance spikes completely. This shields the global fixed-effect slope parameter (β_slope) and preserves a mathematically accurate, non-significant baseline rejection (p ≥ 0.51).
+* **Uncertainty Divergence Mapping:** The automated figure generator (`plot_skew.py`) extracts these runtime artifacts directly from the NetCDF traces and framework summary logs, rendering the final publication contrast dashboard (`output/figures/framework_uncertainty.png`). The chart illustrates the divergence between Bayesian interval collapse and frequentist interval coverage.
 
-![MCMC Phase Transitions and Fragmentation](./amphibian_topology/output/figures/phase_synthesis.png)
-
-### Running the Sub-Experiment
-To conduct the automated tree-pruning sweep and compile the final publication synthesis dashboard, run the following from the root directory:
+### Running the diagnostic scripts
+To run the tree-pruning loop, execute the asymmetry sweep, and compile the companion publication graphics, run the following commands sequentially from the project root directory:
 ```bash
+# Run the continuous lineage pruning sweep
 python amphibian_topology/prune_trees.py
+
+# Generate the phase transition comparison
+python amphibian_topology/utils/plot_synthesis.py
+
+# Run the fine-grained data asymmetry matrix sweep
+python amphibian_topology/simulate_skew.py
+
+# Generate the uncertainty divergence figure
+python amphibian_topology/utils/plot_skew.py
 ```
+
 
 ## Results of the main study replication
 
