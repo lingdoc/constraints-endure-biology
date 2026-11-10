@@ -154,7 +154,9 @@ python utils/generate_plots.py
 ### 1. Lineage fragmentation (`prune_trees.py`)
 This sub-experiment tracks how the core Bayesian engine responds as data connectivity degrades. In macroecology, phylogenies typically provide dense, highly connected paths of information sharing. However, other domains (such as historical linguistics) deal with deeply fractured data networks containing isolated singletons that lack group context.
 
-To observe how this fragmentation impacts inference, `prune_trees.py` takes a stable baseline pool of 1,000 amphibian species and systematically slices their ancestral branches over 21 steps. It contrasts a standard tracking layout (**Frozen**) against an isolate-insulated parameter track (**Routed**), mapping the critical phase boundary where ancestral backbone degradation triggers a complete sampling traction collapse.
+To observe how this fragmentation impacts inference, `prune_trees.py` takes a stable baseline pool of 1,000 amphibian species and systematically slices their ancestral branches over 21 steps. It contrasts a standard tracking layout (**Frozen**) against an isolate-insulated parameter track (**Routed**), identifying the critical phase boundary (Γ) where connectivity degradation triggers sampling traction collapse.
+
+![Network degradation and Bayesian model stability](amphibian_topology/output/figures/phase_synthesis.png)
 
 ### 2. Matrix skew (`simulate_skew.py`)
 This script evaluates the interaction between severe network fragmentation and extreme matrix asymmetry under a conditional implication hypothesis (X ⇒ Y) where any counterexample should logically invalidate the claim. Holding network connectivity fixed at a highly degraded regime (TSI ≤ Γ, extracted directly from Step 7 of the pruning sweep), this experiment systematically varies the number of nested counterexample anomalies across eight incremental steps (N_anom ∈ [0, 1, 2, 3, 4, 5, 8, 10]).
@@ -164,7 +166,9 @@ For each step, it runs a side-by-side benchmark comparing a Centered Bayesian mo
 ### Key findings
 * **The Topological Mirage:** When counterexamples are rare singletons nested within massive cladal structures dominated by the global background population (N_anom ≤ 4), both the Centered and Non-Centered Bayesian models succumb to the Topological Mirage. Hierarchical prior shrinkage gravity forces the group variance container (σ_family) to collapse toward zero, mathematically erasing the exceptions and manufacturing a highly confident, false-positive universal statement (95% CIs entirely above zero).
 * **Profile Likelihood Resilience:** Conversely, the frequentist GP-GLMM engine successfully resists this shrinkage pressure. Operating via an unpenalized profile likelihood surface, its regional random slope coefficients absorb localized variance spikes. This shields the global fixed-effect slope parameter (β_slope) and preserves a mathematically accurate, non-significant baseline rejection (p ≥ 0.51).
-* **Uncertainty Divergence Mapping:** These results are visualized via a script (`plot_skew.py`) that extracts these runtime artifacts directly from the NetCDF traces and framework summary logs. The chart (`output/figures/framework_uncertainty.png`) illustrates the divergence between Bayesian interval collapse and frequentist interval coverage.
+* **Uncertainty Divergence Mapping:** These results are visualized via a script (`plot_skew.py`) that extracts these runtime artifacts directly from the NetCDF traces and framework summary logs. The chart (`output/figures/framework_uncertainty.png`) illustrates the divergence between Bayesian interval collapse and Frequentist interval coverage.
+
+![Uncertainty profiles under data skew at low TSI](amphibian_topology/output/figures/framework_uncertainty.png)
 
 ### Running the diagnostic scripts
 To run the tree-pruning loop, execute the asymmetry sweep, and compile the companion graphics, run the following commands sequentially from the project root directory:
