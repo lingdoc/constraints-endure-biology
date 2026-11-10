@@ -1,6 +1,6 @@
 # Constraints that endure: Assessing model robustness in vertebrate ecology
 
-This repository contains the code to run Bayesian phylogenetic generalized linear mixed models (PGLMMs) evaluating global extinction risks in terrestrial vertebrates. The pipeline builds on data and phylogenies from Munstermann et al. (2022) to separate baseline ecological traits from macro-evolutionary structures across four vertebrate classes.
+This repository contains the code to run Bayesian phylogenetic generalized linear mixed models (PGLMMs) evaluating global extinction risks in terrestrial vertebrates. The pipeline builds on data and phylogenies from Munstermann et al. (2022) to separate baseline ecological traits from macro-evolutionary structures across four vertebrate classes. The repository also contains [two experiments](#companion-experiments-connectivity-and-skew-diagnostics) that illustrate how Bayesian models can give inaccurate estimates when used with datasets exhibiting low Topological Stability and skew.
 
 ## Repository structure
 
@@ -20,7 +20,7 @@ This repository contains the code to run Bayesian phylogenetic generalized linea
 │   │   ├── plot_skew.py                     # plot skew uncertainties
 │   │   └── plot_synthesis.py                # plot pruning results
 │   ├── prune_trees.py                       # tree pruning experiment script
-│   └── prune_trees.py                       # skew simulation script
+│   └── simulate_skew.py                     # skew simulation script
 ├── data/                                    # original trait tables and phylogenetic trees
 │   ├── all_sumthreats.csv                   
 │   ├── amphibian100trees.nex                
@@ -152,7 +152,7 @@ python utils/generate_plots.py
 *Located in the `amphibian_topology/` subdirectory.*
 
 ### 1. Lineage fragmentation (`prune_trees.py`)
-This sub-experiment tracks how the core Bayesian engine responds as data connectivity degrades. In macroecology, phylogenies typically provide dense, highly connected paths of information sharing. However, other domains (such as historical linguistics) deal with deeply fractured data networks containing isolated singletons that lack group context.
+This sub-experiment tracks how the core Bayesian engine responds as data connectivity (TSI, as measured by [the `pytstability` package](https://github.com/lingdoc/pytstability)) degrades. In macroecology, phylogenies typically provide dense, highly connected paths of information sharing. However, other domains (such as historical linguistics) deal with deeply fractured data networks containing isolated singletons that lack group context.
 
 To observe how this fragmentation impacts inference, `prune_trees.py` takes a stable baseline pool of 1,000 amphibian species and systematically slices their ancestral branches over 21 steps. It contrasts a standard tracking layout (**Frozen**) against an isolate-insulated parameter track (**Routed**), identifying the critical phase boundary (Γ) where connectivity degradation triggers sampling traction collapse.
 
@@ -161,17 +161,17 @@ To observe how this fragmentation impacts inference, `prune_trees.py` takes a st
 ### 2. Matrix skew (`simulate_skew.py`)
 This script evaluates the interaction between severe network fragmentation and extreme matrix asymmetry under a conditional implication hypothesis (X ⇒ Y) where any counterexample should logically invalidate the claim. Holding network connectivity fixed at a highly degraded regime (TSI ≤ Γ, extracted directly from Step 7 of the pruning sweep), this experiment systematically varies the number of nested counterexample anomalies across eight incremental steps (N_anom ∈ [0, 1, 2, 3, 4, 5, 8, 10]).
 
-For each step, it runs a side-by-side benchmark comparing a Centered Bayesian model, a Non-Centered Bayesian model, and a frequentist profile maximum likelihood optimizer (GP-GLMM) to map out exactly where different model architectures succumb to parameter erasure. The consolidated results are automatically logged to `output/framework_skew_matrix.csv`.
+For each step, it runs a side-by-side benchmark comparing a Centered Bayesian model, a Non-Centered Bayesian model, and a Frequentist profile maximum likelihood optimizer (GP-GLMM) to map out exactly where different model architectures succumb to parameter erasure. The consolidated results are automatically logged to `output/framework_skew_matrix.csv`.
 
 ### Key findings
 * **The Topological Mirage:** When counterexamples are rare singletons nested within massive cladal structures dominated by the global background population (N_anom ≤ 4), both the Centered and Non-Centered Bayesian models succumb to the Topological Mirage. Hierarchical prior shrinkage gravity forces the group variance container (σ_family) to collapse toward zero, mathematically erasing the exceptions and manufacturing a highly confident, false-positive universal statement (95% CIs entirely above zero).
 * **Profile Likelihood Resilience:** Conversely, the frequentist GP-GLMM engine successfully resists this shrinkage pressure. Operating via an unpenalized profile likelihood surface, its regional random slope coefficients absorb localized variance spikes. This shields the global fixed-effect slope parameter (β_slope) and preserves a mathematically accurate, non-significant baseline rejection (p ≥ 0.51).
-* **Uncertainty Divergence Mapping:** These results are visualized via a script (`plot_skew.py`) that extracts these runtime artifacts directly from the NetCDF traces and framework summary logs. The chart (`output/figures/framework_uncertainty.png`) illustrates the divergence between Bayesian interval collapse and Frequentist interval coverage.
+* **Uncertainty Divergence Mapping:** These results are visualized via a script (`plot_skew.py`) that extracts the runtime artifacts directly from the NetCDF traces and framework summary logs. The chart (`output/figures/framework_uncertainty.png`) illustrates the divergence between Bayesian interval collapse and Frequentist interval coverage.
 
 ![Uncertainty profiles under data skew at low TSI](amphibian_topology/output/figures/framework_uncertainty.png)
 
 ### Running the diagnostic scripts
-To run the tree-pruning loop, execute the asymmetry sweep, and compile the companion graphics, run the following commands sequentially from the project root directory:
+To run the tree-pruning loop, execute the asymmetry sweep, and render the graphics, run the following commands sequentially from the project root directory:
 ```bash
 # Run the continuous lineage pruning sweep
 python amphibian_topology/prune_trees.py
